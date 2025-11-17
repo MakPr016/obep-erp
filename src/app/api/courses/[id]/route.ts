@@ -1,3 +1,4 @@
+// src/app/api/courses/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { createClient } from "@/lib/supabase/server"
@@ -15,36 +16,31 @@ export async function GET(
     }
     const { id: courseId } = await context.params
     const supabase = await createClient()
-    const { data: course, error: courseError } = await supabase
+    const { data: course } = await supabase
       .from("courses")
       .select(`
         *,
         branch:branches (
-          id,
-          name,
-          code,
+          id, name, code,
           department:departments (
-            id,
-            name,
-            code
+            id, name, code
           ),
           scheme:schemes (
-            name,
-            year
+            name
           )
         )
       `)
       .eq("id", courseId)
       .single()
-    if (courseError || !course) {
-      return NextResponse.json({ error: "Course not found" }, { status: 404 })
+    const { data: courseOutcomes } = await supabase
+      .from("course_outcomes")
+      .select("*")
+      .eq("course_id", courseId)
+    const departmentId = course?.branch?.department?.id
+    if (session.user.role === "hod" && departmentId !== session.user.departmentId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
-    const departmentId = course.branch?.department?.id
-    if (session.user.role === "hod") {
-      if (departmentId !== session.user.departmentId) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-      }
-    } else if (session.user.role === "faculty") {
+    if (session.user.role === "faculty") {
       const { data: assignment } = await supabase
         .from("course_class_assignments")
         .select("id")
@@ -63,13 +59,9 @@ export async function GET(
       department_name: course.branch?.department?.name,
       department_code: course.branch?.department?.code,
       scheme_name: course.branch?.scheme?.name,
-      scheme_year: course.branch?.scheme?.year,
     }
-    return NextResponse.json({ course: transformedCourse })
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to fetch course details" },
-      { status: 500 }
-    )
+    return NextResponse.json({ course: transformedCourse, courseOutcomes: courseOutcomes || [] })
+  } catch {
+    return NextResponse.json({ error: "Failed to fetch course details" }, { status: 500 })
   }
 }

@@ -1,6 +1,7 @@
 "use client"
-
+import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
+import { Button } from "@/components/ui/button"
 
 interface Course {
   id: string
@@ -20,12 +21,19 @@ interface Course {
   scheme_name?: string
 }
 
+interface CourseOutcome {
+  id: string
+  co_number: string
+  description: string
+  blooms_level?: string
+}
+
 export function CourseDetails({ courseId }: { courseId: string }) {
-  const [data, setData] = useState<{ course: Course } | null>(null)
+  const [data, setData] = useState<{ course: Course; courseOutcomes: CourseOutcome[] } | null>(null)
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
-    setLoading(true)
     fetch(`/api/courses/${courseId}`)
       .then(res => res.json())
       .then(data => setData(data))
@@ -40,20 +48,33 @@ export function CourseDetails({ courseId }: { courseId: string }) {
       <h1 className="text-2xl font-bold">{data.course.course_name} ({data.course.course_code})</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <div className="mb-1"><span className="font-medium">Type:</span> {data.course.course_type}</div>
-          <div className="mb-1"><span className="font-medium">Semester:</span> {data.course.semester}</div>
-          <div className="mb-1"><span className="font-medium">NBA code:</span> {data.course.nba_code}</div>
-          <div className="mb-1"><span className="font-medium">Target %:</span> {data.course.set_target_percentage * 100}%</div>
+          <div className="mb-1 font-medium">Type: <span className="font-normal">{data.course.course_type}</span></div>
+          <div className="mb-1 font-medium">Semester: <span className="font-normal">{data.course.semester}</span></div>
+          <div className="mb-1 font-medium">NBA code: <span className="font-normal">{data.course.nba_code}</span></div>
+          <div className="mb-1 font-medium">Target %: <span className="font-normal">{data.course.set_target_percentage * 100}%</span></div>
         </div>
         <div>
-          <div className="mb-1"><span className="font-medium">Branch:</span> {data.course.branch_name} ({data.course.branch_code})</div>
-          <div className="mb-1"><span className="font-medium">Department:</span> {data.course.department_name} ({data.course.department_code})</div>
-          <div className="mb-1"><span className="font-medium">Scheme:</span> {data.course.scheme_name || "-"}</div>
+          <div className="mb-1 font-medium">Branch: <span className="font-normal">{data.course.branch_name} ({data.course.branch_code})</span></div>
+          <div className="mb-1 font-medium">Department: <span className="font-normal">{data.course.department_name} ({data.course.department_code})</span></div>
+          <div className="mb-1 font-medium">Scheme: <span className="font-normal">{data.course.scheme_name || "-"}</span></div>
         </div>
       </div>
       <div className="mt-6">
         <h2 className="text-lg font-semibold mb-2">Course Outcomes (COs)</h2>
-        <div className="italic text-muted-foreground">CO listing and editing coming soon...</div>
+        {!data.courseOutcomes || data.courseOutcomes.length === 0 ? (
+          <Button onClick={() => router.push(`/courses/${courseId}/update-co`)}>Add COs</Button>
+        ) : (
+          <div>
+            <ul className="mb-3">
+              {data.courseOutcomes.map((co, n) => (
+                <li key={co.id} className="mb-1">
+                  <span className="font-medium">CO{n + 1}:</span> {co.description}
+                </li>
+              ))}
+            </ul>
+            <Button variant="outline" onClick={() => router.push(`/courses/${courseId}/update-co`)}>Edit COs/Mapping</Button>
+          </div>
+        )}
       </div>
     </div>
   )
