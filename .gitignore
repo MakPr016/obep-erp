@@ -40,5 +40,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-src/scripts**
+/src/scripts**
 src/scripts/generate-passwords.js

@@ -11,9 +11,13 @@ const pool = new Pool({
 
 export const { auth, signIn, signOut, handlers } = NextAuth({
   ...authConfig,
-  trustHost: true,  // Add this line
+  trustHost: true,
   providers: [
     Credentials({
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" }
+      },
       async authorize(credentials) {
         const email = credentials?.email as string
         const password = credentials?.password as string
