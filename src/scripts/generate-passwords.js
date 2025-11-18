@@ -9,7 +9,7 @@ const passwords = {
 };
 
 async function generateHashes() {
-  console.log('\n=== OBEP Password Hashes ===\n');
+  console.log('\n== OBEP Password Hashes ==\n');
   
   for (const [password, label] of Object.entries(passwords)) {
     const hash = await bcrypt.hash(password, 10);

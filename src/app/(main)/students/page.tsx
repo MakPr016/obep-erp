@@ -7,6 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import CsvUploadModal from "./csv-upload-modal"
 import AddStudentModal from "./add-student-modal"
+import EditStudentModal from "./edit-student-modal"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { toast } from "sonner"
 
 export default function StudentPage() {
   const [students, setStudents] = useState<any[]>([])
@@ -16,6 +19,9 @@ export default function StudentPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [selectedStudent, setSelectedStudent] = useState<any>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   const [branches, setBranches] = useState<any[]>([])
   const [schemes, setSchemes] = useState<any[]>([])
@@ -82,7 +88,7 @@ export default function StudentPage() {
       const params = new URLSearchParams()
       params.append("page", page.toString())
       params.append("limit", limit.toString())
-      if (selectedClass) params.append("classid", selectedClass)
+      if (selectedClass && selectedClass !== "all") params.append("classid", selectedClass)
       const res = await fetch(`/api/students?${params.toString()}`)
       const json = await res.json()
       setStudents(Array.isArray(json.students) ? json.students : [])
@@ -98,11 +104,51 @@ export default function StudentPage() {
   const handleUploadSuccess = () => {
     setShowUploadModal(false)
     fetchStudents()
+    toast.success("Students uploaded successfully")
   }
 
   const handleAddSuccess = () => {
     setShowAddModal(false)
     fetchStudents()
+    toast.success("Student added successfully")
+  }
+
+  const handleEditSuccess = () => {
+    setShowEditModal(false)
+    setSelectedStudent(null)
+    fetchStudents()
+    toast.success("Student updated successfully")
+  }
+
+  const openEditModal = (student: any) => {
+    setSelectedStudent(student)
+    setShowEditModal(true)
+  }
+
+  const openDeleteDialog = (student: any) => {
+    setSelectedStudent(student)
+    setShowDeleteDialog(true)
+  }
+
+  const handleDelete = async () => {
+    if (!selectedStudent) return
+    try {
+      const res = await fetch(`/api/students/${selectedStudent.id}`, {
+        method: "DELETE"
+      })
+      if (res.ok) {
+        toast.success("Student deleted successfully")
+        fetchStudents()
+      } else {
+        const errorData = await res.json()
+        toast.error(errorData.error || "Failed to delete student")
+      }
+    } catch {
+      toast.error("Failed to delete student")
+    } finally {
+      setShowDeleteDialog(false)
+      setSelectedStudent(null)
+    }
   }
 
   if (loading) {
@@ -127,9 +173,7 @@ export default function StudentPage() {
           <SelectContent>
             <SelectItem value="all">All Branches</SelectItem>
             {branches.map(branch => (
-              <SelectItem key={branch.id} value={branch.id}>
-                {branch.name}
-              </SelectItem>
+              <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -141,9 +185,7 @@ export default function StudentPage() {
           <SelectContent>
             <SelectItem value="all">All Schemes</SelectItem>
             {schemes.map(scheme => (
-              <SelectItem key={scheme.id} value={scheme.id}>
-                {scheme.name} ({scheme.year})
-              </SelectItem>
+              <SelectItem key={scheme.id} value={scheme.id}>{scheme.name} ({scheme.year})</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -170,12 +212,13 @@ export default function StudentPage() {
             <TableHead>Name</TableHead>
             <TableHead>Class</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {students.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={4} className="text-center text-gray-500">
+              <TableCell colSpan={5} className="text-center text-gray-500">
                 No students found
               </TableCell>
             </TableRow>
@@ -190,6 +233,10 @@ export default function StudentPage() {
                     : "-"}
                 </TableCell>
                 <TableCell>{student.is_active ? "Active" : "Inactive"}</TableCell>
+                <TableCell className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => openEditModal(student)}>Edit</Button>
+                  <Button size="sm" variant="destructive" onClick={() => openDeleteDialog(student)}>Delete</Button>
+                </TableCell>
               </TableRow>
             ))
           )}
@@ -212,8 +259,32 @@ export default function StudentPage() {
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
         onSuccess={handleAddSuccess}
-        branches={branches ?? []}
       />
+
+      {selectedStudent && (
+        <EditStudentModal
+          open={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          onSuccess={handleEditSuccess}
+          student={selectedStudent}
+          // branches={branches}
+          // schemes={schemes}
+          // classes={classes}
+        />
+      )}
+
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Delete</DialogTitle>
+          </DialogHeader>
+          <p>Are you sure you want to delete student "{selectedStudent?.name}"?</p>
+          <DialogFooter className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
