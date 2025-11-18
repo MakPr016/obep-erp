@@ -21,11 +21,15 @@ interface Course {
   scheme_name?: string
 }
 
+interface ProgramOutcome {
+  id: string
+  po_number: string
+  description: string
+}
+
 interface COPOmap {
   mapping_strength: number
-  program_outcome: {
-    po_number: string
-  }
+  program_outcome: ProgramOutcome
 }
 
 interface CourseOutcome {
@@ -37,12 +41,16 @@ interface CourseOutcome {
 }
 
 export function CourseDetails({ courseId }: { courseId: string }) {
-  const [data, setData] = useState<{ course: Course; courseOutcomes: CourseOutcome[] } | null>(null)
+  const [data, setData] = useState<{ 
+    course: Course
+    courseOutcomes: CourseOutcome[]
+    programOutcomes: ProgramOutcome[]
+  } | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
   useEffect(() => {
-    fetch(`/api/courses/${courseId}`)
+    fetch(`/api/courses/${courseId}/cos`)
       .then(res => res.json())
       .then(data => setData(data))
       .finally(() => setLoading(false))
@@ -85,8 +93,8 @@ export function CourseDetails({ courseId }: { courseId: string }) {
                   <th className="border p-2 text-left">CO Number</th>
                   <th className="border p-2 text-left">Description</th>
                   <th className="border p-2 text-left">Bloom's Level</th>
-                  {["PO1","PO2","PO3","PO4","PO5","PO6","PO7","PO8","PO9","PO10","PO11"].map(po => (
-                    <th key={po} className="border p-2 text-center">{po}</th>
+                  {data.programOutcomes?.map(po => (
+                    <th key={po.id} className="border p-2 text-center">{po.po_number}</th>
                   ))}
                 </tr>
               </thead>
@@ -96,10 +104,15 @@ export function CourseDetails({ courseId }: { courseId: string }) {
                     <td className="border p-2">{co.co_number}</td>
                     <td className="border p-2">{co.description}</td>
                     <td className="border p-2">{co.blooms_level || "-"}</td>
-                    {["PO1","PO2","PO3","PO4","PO5","PO6","PO7","PO8","PO9","PO10","PO11"].map(po => {
-                      const mapping = (co.co_po_mappings || []).find(m => m.program_outcome?.po_number === po)
+                    {data.programOutcomes?.map(po => {
+                      const mapping = (co.co_po_mappings || []).find(
+                        m => m.program_outcome?.id === po.id
+                      )
                       return (
-                        <td key={po} className={`border p-2 text-center ${getStrengthColor(mapping?.mapping_strength ?? 0)}`}>
+                        <td 
+                          key={po.id} 
+                          className={`border p-2 text-center ${getStrengthColor(mapping?.mapping_strength ?? 0)}`}
+                        >
                           {mapping?.mapping_strength ?? 0}
                         </td>
                       )

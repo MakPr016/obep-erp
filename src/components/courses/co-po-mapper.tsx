@@ -1,7 +1,6 @@
-// src/components/courses/co-po-mapper.tsx
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -14,10 +13,6 @@ import { Badge } from "@/components/ui/badge"
 import { Loader2, Plus, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 
-const PO_LIST = [
-  "PO1","PO2","PO3","PO4","PO5","PO6","PO7","PO8","PO9","PO10","PO11"
-]
-
 const formSchema = z.object({
   cos: z.array(z.object({
     text: z.string().min(10)
@@ -26,8 +21,15 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>
 
+interface ProgramOutcome {
+  id: string
+  po_number: string
+  description: string
+}
+
 interface POMapping {
-  po_id: string
+  po_id: string // UUID of program outcome
+  po_number: string // for display
   score: number
   strength: number
 }
@@ -45,21 +47,52 @@ interface COEditable {
   bloom_prediction: BloomPrediction
 }
 
-export default function MapPage({ courseId }: { courseId: string }) {
+type MapPageProps = {
+  courseId: string
+  initialCOs?: any[]
+  programOutcomes: ProgramOutcome[]
+}
+
+export default function MapPage({ courseId, initialCOs, programOutcomes }: MapPageProps) {
   const [results, setResults] = useState<COEditable[] | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
   const router = useRouter()
-
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { cos: [{ text: '' }] },
+    defaultValues: { cos: [{ text: '' }] }
   })
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "cos"
   })
+
+  useEffect(() => {
+    if (initialCOs && programOutcomes) {
+      form.reset({
+        cos: initialCOs.map((co: any) => ({ text: co.description })),
+      })
+      setResults(initialCOs.map((co: any) => ({
+        co_text: co.description,
+        bloom_prediction: {
+          predicted_level: co.blooms_level || "CL1",
+          confidence: 1,
+          all_scores: {},
+          description: ""
+        },
+        mappings: programOutcomes.map(po => {
+          const m = co.co_po_mappings?.find((x: any) => x.program_outcome?.id === po.id)
+          return {
+            po_id: po.id,
+            po_number: po.po_number,
+            strength: m?.mapping_strength ?? 0,
+            score: m?.mapping_strength ? m.mapping_strength / 3 : 0,
+          }
+        })
+      })))
+    }
+  }, [initialCOs, programOutcomes, form])
 
   const onSubmit = async (values: FormValues) => {
     setIsLoading(true)
@@ -75,11 +108,16 @@ export default function MapPage({ courseId }: { courseId: string }) {
       const data = await response.json()
       setResults(data.results.map((r: any) => ({
         co_text: r.co_text,
-        mappings: PO_LIST.map(po => {
-          const m = r.mappings.find((x: any) => x.po_id === po)
-          return { po_id: po, score: m?.score ?? 0, strength: m?.strength ?? 0 }
-        }),
-        bloom_prediction: r.bloom_prediction || { predicted_level: "Remember", confidence: 1, all_scores: {}, description: "" }
+        bloom_prediction: r.bloom_prediction || { predicted_level: "Remember", confidence: 1, all_scores: {}, description: "" },
+        mappings: programOutcomes.map(po => {
+          const m = r.mappings.find((x: any) => x.po_id === po.id)
+          return {
+            po_id: po.id,
+            po_number: po.po_number,
+            score: m?.score ?? 0,
+            strength: m?.strength ?? 0
+          }
+        })
       })))
     } catch (e) {
       alert("Mapping failed")
@@ -87,7 +125,7 @@ export default function MapPage({ courseId }: { courseId: string }) {
     setIsLoading(false)
   }
 
-  const onMappingEdit = (coIdx: number, poIdx: number, field: "strength"|"score", value: string) => {
+  const onMappingEdit = (coIdx: number, poIdx: number, field: "strength" | "score", value: string) => {
     if (!results) return
     setResults(r =>
       r!.map((co, i) =>
@@ -110,16 +148,16 @@ export default function MapPage({ courseId }: { courseId: string }) {
   const colorScore = (score: number) =>
     score >= 0.7 ? "text-green-600 font-semibold"
       : score >= 0.5 ? "text-blue-600 font-semibold"
-      : score >= 0.3 ? "text-yellow-600"
-      : "text-gray-500"
+        : score >= 0.3 ? "text-yellow-600"
+          : "text-gray-500"
 
   const bloomColors: Record<string, string> = {
-    Remember: "bg-gray-500",
-    Understand: "bg-blue-500",
-    Apply: "bg-green-500",
-    Analyze: "bg-yellow-500",
-    Evaluate: "bg-orange-500",
-    Create: "bg-purple-500",
+    CL1: "bg-gray-500",
+    CL2: "bg-blue-500",
+    CL3: "bg-green-500",
+    CL4: "bg-yellow-500",
+    CL5: "bg-orange-500",
+    CL6: "bg-purple-500",
   }
 
   const onSave = async () => {
@@ -144,7 +182,9 @@ export default function MapPage({ courseId }: { courseId: string }) {
       <Card>
         <CardHeader>
           <CardTitle>Enter Course Outcomes</CardTitle>
-          <CardDescription>Add one or more Course Outcomes to analyze and save their PO mapping.</CardDescription>
+          <CardDescription>
+            Add one or more Course Outcomes to analyze and save their PO mapping.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -203,31 +243,34 @@ export default function MapPage({ courseId }: { courseId: string }) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Course Outcome</TableHead>
-                    <TableHead>Bloom's Level</TableHead>
-                    {PO_LIST.map(po => (
-                      <TableHead key={po} className="text-center">{po}</TableHead>
+                    <TableHead>CO</TableHead>
+                    <TableHead>Bloom&apos;s</TableHead>
+                    {programOutcomes.map(po => (
+                      <TableHead key={po.id} className="text-center">{po.po_number}</TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {results.map((co, coIdx) => (
                     <TableRow key={coIdx}>
-                      <TableCell className="font-medium max-w-[250px]">{co.co_text}</TableCell>
+                      <TableCell className="font-medium max-w-[120px] truncate" title={co.co_text}>
+                        CO{coIdx + 1}: {co.co_text.slice(0, 24)}{co.co_text.length > 24 ? "..." : ""}
+                      </TableCell>
                       <TableCell className="text-center">
                         <Badge className={`${bloomColors[co.bloom_prediction.predicted_level] || "bg-gray-500"} text-white`}>
                           {co.bloom_prediction.predicted_level}
                         </Badge>
                       </TableCell>
                       {co.mappings.map((m, poIdx) => (
-                        <TableCell key={poIdx} className="p-1 text-center">
+                        <TableCell key={m.po_id} className="p-1 px-2 align-middle text-center">
                           <input
                             type="number"
                             min={0}
                             max={3}
-                            className={`w-10 rounded border py-0.5 px-1 text-center ${colorStrength(m.strength)}`}
+                            className={`w-10 rounded border py-0.5 px-1 text-center text-sm ${colorStrength(m.strength)}`}
                             value={m.strength}
                             onChange={e => onMappingEdit(coIdx, poIdx, "strength", e.target.value)}
+                            style={{ marginBottom: 2 }}
                           />
                           <input
                             type="number"

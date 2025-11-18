@@ -1,4 +1,3 @@
-// src/app/api/courses/[id]/cos/route.ts
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
@@ -9,6 +8,116 @@ const bloomToEnumMap: Record<string, string> = {
   Analyze: "CL4",
   Evaluate: "CL5",
   Create: "CL6",
+}
+
+export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  try {
+    const { id: courseId } = await context.params
+    const supabase = await createClient()
+
+    const { data: course, error: courseError } = await supabase
+      .from("courses")
+      .select("*")
+      .eq("id", courseId)
+      .single()
+
+    if (courseError || !course) {
+      console.error("GET course error:", courseError)
+      return NextResponse.json({ error: "Course not found" }, { status: 404 })
+    }
+
+    const { data: branch } = await supabase
+      .from("branches")
+      .select("branch_name, branch_code")
+      .eq("id", course.branch_id)
+      .single()
+
+    const { data: department } = await supabase
+      .from("departments")
+      .select("department_name, department_code")
+      .eq("id", course.department_id)
+      .single()
+
+    const { data: courseOutcomes, error: coError } = await supabase
+      .from("course_outcomes")
+      .select("id, co_number, description, blooms_level")
+      .eq("course_id", courseId)
+      .order("co_number")
+
+    if (coError) {
+      console.error("GET course_outcomes error:", coError)
+      return NextResponse.json({ error: coError.message }, { status: 500 })
+    }
+
+    const coIds = courseOutcomes?.map(co => co.id) || []
+    let coPoMappings: any[] = []
+
+    if (coIds.length > 0) {
+      const { data: mappings } = await supabase
+        .from("co_po_mappings")
+        .select("course_outcome_id, program_outcome_id, mapping_strength")
+        .in("course_outcome_id", coIds)
+
+      coPoMappings = mappings || []
+    }
+
+    const poIds = [...new Set(coPoMappings.map(m => m.program_outcome_id))]
+    let programOutcomesMap: Record<string, any> = {}
+
+    if (poIds.length > 0) {
+      const { data: pos } = await supabase
+        .from("program_outcomes")
+        .select("id, po_number, description")
+        .in("id", poIds)
+
+      if (pos) {
+        pos.forEach(po => {
+          programOutcomesMap[po.id] = po
+        })
+      }
+    }
+
+    const { data: allProgramOutcomes, error: poError } = await supabase
+      .from("program_outcomes")
+      .select("id, po_number, description")
+      .eq("branch_id", course.branch_id)
+      .order("po_number")
+
+    if (poError) {
+      console.error("GET program_outcomes error:", poError)
+      return NextResponse.json({ error: poError.message }, { status: 500 })
+    }
+
+    const enrichedCourseOutcomes = courseOutcomes?.map(co => {
+      const mappings = coPoMappings
+        .filter(m => m.course_outcome_id === co.id)
+        .map(m => ({
+          mapping_strength: m.mapping_strength,
+          program_outcome: programOutcomesMap[m.program_outcome_id]
+        }))
+        .filter(m => m.program_outcome)
+
+      return {
+        ...co,
+        co_po_mappings: mappings
+      }
+    })
+
+    return NextResponse.json({
+      course: {
+        ...course,
+        branch_name: branch?.branch_name,
+        branch_code: branch?.branch_code,
+        department_name: department?.department_name,
+        department_code: department?.department_code,
+      },
+      courseOutcomes: enrichedCourseOutcomes || [],
+      programOutcomes: allProgramOutcomes || []
+    })
+  } catch (error: any) {
+    console.error("Unhandled error in GET /cos:", error)
+    return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -89,7 +198,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
           return NextResponse.json({ error: `Mapping error: ${mappingErr.message}` }, { status: 500 })
         }
       }
-
     }
     return NextResponse.json({ ok: true })
   } catch (error: any) {
