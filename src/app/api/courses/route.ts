@@ -82,7 +82,6 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Execute query with pagination
     const { data: courses, error, count } = await query
       .order("semester")
       .order("course_code")
@@ -130,5 +129,27 @@ export async function GET(request: NextRequest) {
       { error: "Failed to fetch courses" },
       { status: 500 }
     )
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await auth()
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    const payload = await request.json()
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from("courses")
+      .insert(payload)
+      .select()
+      .single()
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    return NextResponse.json({ course: data })
+  } catch {
+    return NextResponse.json({ error: "Failed to add course" }, { status: 500 })
   }
 }
