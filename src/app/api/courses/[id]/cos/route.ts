@@ -15,6 +15,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     const { id: courseId } = await context.params
     const supabase = await createClient()
 
+    // Fetch course details
     const { data: course, error: courseError } = await supabase
       .from("courses")
       .select("*")
@@ -26,18 +27,21 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       return NextResponse.json({ error: "Course not found" }, { status: 404 })
     }
 
+    // Fetch branch info
     const { data: branch } = await supabase
       .from("branches")
       .select("branch_name, branch_code")
       .eq("id", course.branch_id)
       .single()
 
+    // Fetch department info
     const { data: department } = await supabase
       .from("departments")
       .select("department_name, department_code")
       .eq("id", course.department_id)
       .single()
 
+    // Fetch course outcomes
     const { data: courseOutcomes, error: coError } = await supabase
       .from("course_outcomes")
       .select("id, co_number, description, blooms_level")
@@ -49,27 +53,25 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       return NextResponse.json({ error: coError.message }, { status: 500 })
     }
 
+    // Fetch CO-PO mappings
     const coIds = courseOutcomes?.map(co => co.id) || []
     let coPoMappings: any[] = []
-
     if (coIds.length > 0) {
       const { data: mappings } = await supabase
         .from("co_po_mappings")
         .select("course_outcome_id, program_outcome_id, mapping_strength")
         .in("course_outcome_id", coIds)
-
       coPoMappings = mappings || []
     }
 
+    // Build program outcome map from mapped IDs
     const poIds = [...new Set(coPoMappings.map(m => m.program_outcome_id))]
     let programOutcomesMap: Record<string, any> = {}
-
     if (poIds.length > 0) {
       const { data: pos } = await supabase
         .from("program_outcomes")
         .select("id, po_number, description")
         .in("id", poIds)
-
       if (pos) {
         pos.forEach(po => {
           programOutcomesMap[po.id] = po
@@ -77,6 +79,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       }
     }
 
+    // Fetch all program outcomes for course branch
     const { data: allProgramOutcomes, error: poError } = await supabase
       .from("program_outcomes")
       .select("id, po_number, description")
@@ -88,6 +91,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       return NextResponse.json({ error: poError.message }, { status: 500 })
     }
 
+    // Enrich COs with their mappings for frontend convenience
     const enrichedCourseOutcomes = courseOutcomes?.map(co => {
       const mappings = coPoMappings
         .filter(m => m.course_outcome_id === co.id)
@@ -125,30 +129,35 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     const { id: courseId } = await context.params
     const { results } = await req.json()
     const supabase = await createClient()
-    if (!Array.isArray(results)) return NextResponse.json({ error: "Missing data" }, { status: 400 })
+
+    if (!Array.isArray(results)) {
+      return NextResponse.json({ error: "Missing or invalid data" }, { status: 400 })
+    }
 
     const { data: course, error: courseError } = await supabase
       .from("courses")
       .select("branch_id")
       .eq("id", courseId)
       .single()
-    if (courseError) {
-      console.error("GET course error:", courseError)
-      return NextResponse.json({ error: "Invalid course/branch" }, { status: 400 })
-    }
-    if (!course || !course.branch_id) return NextResponse.json({ error: "Invalid course/branch" }, { status: 400 })
 
+    if (courseError || !course?.branch_id) {
+      console.error("GET course error:", courseError)
+      return NextResponse.json({ error: "Invalid course or missing branch" }, { status: 400 })
+    }
+
+    // Since frontend sends UUIDs, fetch program outcomes just for validation / logging (optional)
     const { data: poList, error: poListError } = await supabase
       .from("program_outcomes")
       .select("id, po_number")
       .eq("branch_id", course.branch_id)
+
     if (poListError) {
       console.error("Fetch program_outcomes error:", poListError)
       return NextResponse.json({ error: poListError.message }, { status: 500 })
     }
 
-    const poMap: Record<string, string> = {}
-    if (poList) for (const po of poList) poMap[po.po_number] = po.id
+    // Create a set of valid UUIDs for quick validation (optional)
+    const validPoIds = new Set(poList?.map(po => po.id) || [])
 
     for (let i = 0; i < results.length; i++) {
       const co = results[i]
@@ -170,6 +179,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         )
         .select()
         .single()
+
       if (coErr || !coRow) {
         console.error("Course_outcomes upsert error:", coErr)
         return NextResponse.json({ error: `CO save error: ${coErr?.message}` }, { status: 500 })
@@ -178,11 +188,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       for (const mapping of co.mappings) {
         if (!mapping.strength || mapping.strength < 1 || mapping.strength > 3) continue
 
-        const program_outcome_id = poMap[mapping.po_id]
-        if (!program_outcome_id) {
-          console.error("Invalid mapping PO number", mapping.po_id)
+        const program_outcome_id = mapping.po_id
+
+        if (!validPoIds.has(program_outcome_id)) {
+          console.error("Invalid mapping PO UUID", program_outcome_id)
           continue
         }
+
         const { error: mappingErr } = await supabase
           .from("co_po_mappings")
           .upsert(
@@ -193,12 +205,14 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
             },
             { onConflict: "course_outcome_id,program_outcome_id" }
           )
+
         if (mappingErr) {
           console.error("Mapping upsert error:", mappingErr)
           return NextResponse.json({ error: `Mapping error: ${mappingErr.message}` }, { status: 500 })
         }
       }
     }
+
     return NextResponse.json({ ok: true })
   } catch (error: any) {
     console.error("Unhandled error in POST /cos:", error)

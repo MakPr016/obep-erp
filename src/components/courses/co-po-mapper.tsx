@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Loader2, Plus, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 const formSchema = z.object({
   cos: z.array(z.object({
@@ -106,11 +107,12 @@ export default function MapPage({ courseId, initialCOs, programOutcomes }: MapPa
       })
       if (!response.ok) throw new Error("Failed to map COs")
       const data = await response.json()
+      console.log(data);
       setResults(data.results.map((r: any) => ({
         co_text: r.co_text,
         bloom_prediction: r.bloom_prediction || { predicted_level: "Remember", confidence: 1, all_scores: {}, description: "" },
         mappings: programOutcomes.map(po => {
-          const m = r.mappings.find((x: any) => x.po_id === po.id)
+          const m = r.mappings.find((x: any) => x.po_id === po.po_number)
           return {
             po_id: po.id,
             po_number: po.po_number,
@@ -120,7 +122,7 @@ export default function MapPage({ courseId, initialCOs, programOutcomes }: MapPa
         })
       })))
     } catch (e) {
-      alert("Mapping failed")
+      toast.success("Mapping failed")
     }
     setIsLoading(false)
   }
@@ -142,8 +144,8 @@ export default function MapPage({ courseId, initialCOs, programOutcomes }: MapPa
   const colorStrength = (strength: number) =>
     strength === 3 ? "text-green-600 font-bold"
       : strength === 2 ? "text-blue-600 font-bold"
-      : strength === 1 ? "text-yellow-600 font-bold"
-      : "text-gray-500 font-bold"
+        : strength === 1 ? "text-yellow-600 font-bold"
+          : "text-gray-500 font-bold"
 
   const colorScore = (score: number) =>
     score >= 0.7 ? "text-green-600 font-semibold"
@@ -169,10 +171,10 @@ export default function MapPage({ courseId, initialCOs, programOutcomes }: MapPa
     })
     if (res.ok) {
       setIsSaved(true)
-      alert("COs and mappings saved!")
+      toast.success("COs and mappings saved!")
       router.push(`/courses/${courseId}`)
     } else {
-      alert("Failed to save COs and mappings")
+      toast.error("Failed to save COs and mappings")
     }
     setIsLoading(false)
   }
