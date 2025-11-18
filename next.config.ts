@@ -1,12 +1,15 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   experimental: {
     serverActions: {
-      allowedOrigins: ["localhost:3000"],
+      allowedOrigins: [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://obep-erp.vercel.app"
+      ],
     },
   },
   reactCompiler: true,
-};
+}
 
-export default nextConfig;
+module.exports = nextConfig

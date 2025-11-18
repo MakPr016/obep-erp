@@ -1,6 +1,5 @@
 "use client"
 
-import { signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -14,21 +13,13 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { LogOut, User } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import SignOutButton from "@/components/auth/sign-out-button"
 
 interface HeaderProps {
   session: any
 }
 
 export function Header({ session }: HeaderProps) {
-  const router = useRouter()
-
-  const handleSignOut = async () => {
-    await signOut({ redirect: false })
-    toast.success("Signed out successfully")
-    router.push("/login")
-    router.refresh()
-  }
-
   const fullName = session?.user?.name || session?.user?.email || "User"
   const initials = fullName
     .split(" ")
@@ -69,9 +60,8 @@ export function Header({ session }: HeaderProps) {
               <User className="mr-2 h-4 w-4" />
               Profile
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleSignOut}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign out
+            <DropdownMenuItem>
+              <SignOutButton />
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
