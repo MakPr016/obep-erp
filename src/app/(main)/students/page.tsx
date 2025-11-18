@@ -21,12 +21,11 @@ export default function StudentPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showDeactivateDialog, setShowDeactivateDialog] = useState(false)
 
   const [branches, setBranches] = useState<any[]>([])
   const [schemes, setSchemes] = useState<any[]>([])
   const [classes, setClasses] = useState<any[]>([])
-
   const [selectedBranch, setSelectedBranch] = useState<string>("")
   const [selectedScheme, setSelectedScheme] = useState<string>("")
   const [selectedClass, setSelectedClass] = useState<string>("")
@@ -125,29 +124,48 @@ export default function StudentPage() {
     setShowEditModal(true)
   }
 
-  const openDeleteDialog = (student: any) => {
+  const openDeactivateDialog = (student: any) => {
     setSelectedStudent(student)
-    setShowDeleteDialog(true)
+    setShowDeactivateDialog(true)
   }
 
-  const handleDelete = async () => {
+  const handleDeactivate = async () => {
     if (!selectedStudent) return
     try {
       const res = await fetch(`/api/students/${selectedStudent.id}`, {
         method: "DELETE"
       })
       if (res.ok) {
-        toast.success("Student deleted successfully")
+        toast.success("Student deactivated successfully")
         fetchStudents()
       } else {
         const errorData = await res.json()
-        toast.error(errorData.error || "Failed to delete student")
+        toast.error(errorData.error || "Failed to deactivate student")
       }
     } catch {
-      toast.error("Failed to delete student")
+      toast.error("Failed to deactivate student")
     } finally {
-      setShowDeleteDialog(false)
+      setShowDeactivateDialog(false)
       setSelectedStudent(null)
+    }
+  }
+
+  const handleActivate = async (student: any) => {
+    try {
+      const res = await fetch(`/api/students/${student.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active: true })
+      })
+      if (res.ok) {
+        toast.success("Student activated successfully")
+        fetchStudents()
+      } else {
+        const errorData = await res.json()
+        toast.error(errorData.error || "Failed to activate student")
+      }
+    } catch {
+      toast.error("Failed to activate student")
     }
   }
 
@@ -164,7 +182,6 @@ export default function StudentPage() {
           <Button onClick={() => setShowUploadModal(true)}>Upload CSV</Button>
         </div>
       </div>
-
       <div className="flex gap-4 mb-6">
         <Select value={selectedBranch} onValueChange={setSelectedBranch}>
           <SelectTrigger className="w-[200px]">
@@ -177,7 +194,6 @@ export default function StudentPage() {
             ))}
           </SelectContent>
         </Select>
-
         <Select value={selectedScheme} onValueChange={setSelectedScheme}>
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Select Scheme" />
@@ -189,7 +205,6 @@ export default function StudentPage() {
             ))}
           </SelectContent>
         </Select>
-
         <Select value={selectedClass} onValueChange={setSelectedClass} disabled={!selectedBranch || !selectedScheme}>
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Select Class" />
@@ -204,7 +219,6 @@ export default function StudentPage() {
           </SelectContent>
         </Select>
       </div>
-
       <Table>
         <TableHeader>
           <TableRow>
@@ -235,32 +249,32 @@ export default function StudentPage() {
                 <TableCell>{student.is_active ? "Active" : "Inactive"}</TableCell>
                 <TableCell className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={() => openEditModal(student)}>Edit</Button>
-                  <Button size="sm" variant="destructive" onClick={() => openDeleteDialog(student)}>Delete</Button>
+                  {student.is_active ? (
+                    <Button size="sm" variant="destructive" onClick={() => openDeactivateDialog(student)}>Deactivate</Button>
+                  ) : (
+                    <Button size="sm" variant="outline" onClick={() => handleActivate(student)}>Activate</Button>
+                  )}
                 </TableCell>
               </TableRow>
             ))
           )}
         </TableBody>
       </Table>
-
       <div className="flex justify-between mt-4">
         <Button disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Previous</Button>
         <div>Page {page} of {totalPages}</div>
         <Button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next</Button>
       </div>
-
       <CsvUploadModal
         open={showUploadModal}
         onClose={() => setShowUploadModal(false)}
         onSuccess={handleUploadSuccess}
       />
-
       <AddStudentModal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
         onSuccess={handleAddSuccess}
       />
-
       {selectedStudent && (
         <EditStudentModal
           open={showEditModal}
@@ -269,16 +283,15 @@ export default function StudentPage() {
           student={selectedStudent}
         />
       )}
-
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <Dialog open={showDeactivateDialog} onOpenChange={setShowDeactivateDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm Delete</DialogTitle>
+            <DialogTitle>Confirm Deactivation</DialogTitle>
           </DialogHeader>
-          <p>Are you sure you want to delete student "{selectedStudent?.name}"?</p>
+          <p>Are you sure you want to deactivate student "{selectedStudent?.name}"?</p>
           <DialogFooter className="flex gap-2 justify-end">
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete}>Delete</Button>
+            <Button variant="outline" onClick={() => setShowDeactivateDialog(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDeactivate}>Deactivate</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
