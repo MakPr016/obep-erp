@@ -267,9 +267,6 @@ export default function StudentPage() {
           onClose={() => setShowEditModal(false)}
           onSuccess={handleEditSuccess}
           student={selectedStudent}
-          // branches={branches}
-          // schemes={schemes}
-          // classes={classes}
         />
       )}
 

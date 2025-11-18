@@ -10,32 +10,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No student data provided" }, { status: 400 })
     }
 
-    const { data: classes, error: classError } = await supabase
-      .from("classes")
-      .select("id, code")
-
-    if (classError) throw classError
-
-    const mappedStudents = body.students.map((s: any) => {
-      const cls = classes.find(c => c.code === s.class_name)
-      return {
-        ...s,
-        class_id: cls?.id || null,
-        is_active: typeof s.is_active === "string"
-          ? s.is_active.toLowerCase() === "true"
-          : !!s.is_active,
-      }
-    })
-
-    const validStudents = mappedStudents.filter((s: any) => s.class_id !== null)
-
-    if (validStudents.length === 0) {
-      return NextResponse.json({ error: "No valid students with matching class_name found" }, { status: 400 })
-    }
+    const studentsWithActiveFlag = body.students.map((s: any) => ({
+      ...s,
+      is_active: typeof s.is_active === "string" ? s.is_active.toLowerCase() === "true" : !!s.is_active,
+    }))
 
     const { error } = await supabase
       .from("students")
-      .upsert(validStudents, { onConflict: "usn" })
+      .upsert(studentsWithActiveFlag, { onConflict: "usn" })
 
     if (error) throw error
 
