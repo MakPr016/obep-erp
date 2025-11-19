@@ -56,6 +56,7 @@ const authHandler = NextAuth({
 
         }),
     ],
+    trustHost: true,
     session: {
         strategy: "jwt",
     },
