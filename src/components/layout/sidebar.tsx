@@ -27,9 +27,10 @@ export function Sidebar({ session }: SidebarProps) {
   const navigation = [
     { name: "Dashboard", href: dashboardPath, icon: LayoutDashboard, roles: ["admin", "hod", "faculty"] },
     { name: "Courses", href: "/courses", icon: GraduationCap, roles: ["admin", "hod", "faculty"] },
+    { name: "Branches", href: "/branches", icon: Settings, roles: ["admin"] },
+    { name: "Classes", href: "/classes", icon: Layers, roles: ["admin", "hod", "faculty"] },
     { name: "Students", href: "/students", icon: Users, roles: ["admin", "hod", "faculty"] },
     { name: "Faculty", href: "/faculties", icon: Users, roles: ["admin", "hod", "faculty"] },
-    { name: "Classes", href: "/classes", icon: Layers, roles: ["admin", "hod", "faculty"] },
     { name: "Assessments", href: "/assessments", icon: FileText, roles: ["admin", "hod", "faculty"] },
     { name: "Reports", href: "/reports", icon: BarChart3, roles: ["admin", "hod"] },
     { name: "Settings", href: "/settings", icon: Settings, roles: ["admin"] },

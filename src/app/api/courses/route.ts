@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const branchId = searchParams.get("branchId")
     const semester = searchParams.get("semester")
+    const schemeId = searchParams.get("schemeId")
     const courseType = searchParams.get("courseType")
     const search = searchParams.get("search")
     const page = parseInt(searchParams.get("page") || "1")
@@ -23,14 +24,17 @@ export async function GET(request: NextRequest) {
 
     const supabase = await createClient()
 
+    const branchJoin = schemeId ? "!inner" : ""
+
     let query = supabase
       .from("courses")
       .select(`
         *,
-        branch:branches (
+        branch:branches${branchJoin} (
           id,
           name,
           code,
+          scheme_id,
           department:departments (
             id,
             name,
@@ -70,6 +74,10 @@ export async function GET(request: NextRequest) {
 
     if (semester) {
       query = query.eq("semester", parseInt(semester))
+    }
+
+    if (schemeId) {
+      query = query.eq("branch.scheme_id", schemeId)
     }
 
     if (courseType) {
