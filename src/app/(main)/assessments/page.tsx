@@ -1,3 +1,34 @@
+// 'use client';
+
+// import { useState, useEffect } from 'react';
+// import { useRouter } from 'next/navigation';
+// import { Plus, FileText, Loader2 } from 'lucide-react';
+// import { Button } from '@/components/ui/button';
+// import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+// import { toast } from 'sonner';
+// import {
+//   Select,
+//   SelectTrigger,
+//   SelectValue,
+//   SelectContent,
+//   SelectItem,
+// } from '@/components/ui/select';
+
+// interface Course {
+//   id: string;
+//   course_name: string;
+//   course_code: string;
+//   branch: { name: string } | null;
+//   semester: number;
+//   academic_year: string;
+//   scheme_name?: string;
+// }
+
+// interface FilterOption {
+//   value: string | number;
+//   label: string;
+// }
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -33,39 +64,67 @@ export default function AssessmentsPage() {
   const router = useRouter();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(false);
-  const [filters, setFilters] = useState({
-    branches: [] as FilterOption[],
-    semesters: [] as FilterOption[],
-    schemes: [] as FilterOption[],
-  });
-  const [selectedBranch, setSelectedBranch] = useState<string>('');
-  const [selectedSemester, setSelectedSemester] = useState<number | ''>('');
+
+  const [schemes, setSchemes] = useState<FilterOption[]>([]);
+  const [branches, setBranches] = useState<FilterOption[]>([]);
+  const [semesters, setSemesters] = useState<FilterOption[]>([]);
+
+  const [loadingSchemes, setLoadingSchemes] = useState(false);
+  const [loadingBranches, setLoadingBranches] = useState(false);
+
   const [selectedScheme, setSelectedScheme] = useState<string>('');
+  const [selectedBranch, setSelectedBranch] = useState<string>('');
+  const [selectedSemester, setSelectedSemester] = useState<string>('');
+
   const [searched, setSearched] = useState(false);
 
   useEffect(() => {
-    fetchFilters();
+    fetchSchemes();
   }, []);
 
-  const fetchFilters = async () => {
+  useEffect(() => {
+    if (selectedScheme) {
+      fetchBranches(selectedScheme);
+    } else {
+      setBranches([]);
+    }
+    setSelectedBranch('');
+  }, [selectedScheme]);
+
+  const fetchSchemes = async () => {
+    setLoadingSchemes(true);
     try {
       const res = await fetch('/api/courses/filters');
       const data = await res.json();
-      setFilters({
-        branches:
-          data.branches.map((b: any) => ({
-            value: b.id,
-            label: b.name,
-          })) || [],
-        semesters: data.semesters || [],
-        schemes:
-          data.schemes?.map((s: any) => ({
-            value: s.id,
-            label: s.name,
-          })) || [],
-      });
+      setSchemes(
+        data.schemes?.map((s: any) => ({
+          value: s.id,
+          label: s.name,
+        })) || []
+      );
+      setSemesters(data.semesters || []);
     } catch {
-      toast.error('Failed to load filters');
+      toast.error('Failed to load schemes');
+    } finally {
+      setLoadingSchemes(false);
+    }
+  };
+
+  const fetchBranches = async (schemeId: string) => {
+    setLoadingBranches(true);
+    try {
+      const res = await fetch(`/api/courses/filters?schemeId=${schemeId}`);
+      const data = await res.json();
+      setBranches(
+        data.branches.map((b: any) => ({
+          value: b.id,
+          label: b.name,
+        })) || []
+      );
+    } catch {
+      toast.error('Failed to load branches');
+    } finally {
+      setLoadingBranches(false);
     }
   };
 
@@ -75,7 +134,7 @@ export default function AssessmentsPage() {
     try {
       const params = new URLSearchParams();
       if (selectedBranch) params.append('branchId', selectedBranch);
-      if (selectedSemester) params.append('semester', selectedSemester.toString());
+      if (selectedSemester) params.append('semester', selectedSemester);
       if (selectedScheme) params.append('schemeId', selectedScheme);
       const res = await fetch(`/api/courses?${params.toString()}`);
       const data = await res.json();
@@ -92,47 +151,21 @@ export default function AssessmentsPage() {
     <div className="container mx-auto p-6">
       <h1 className="text-3xl font-bold mb-6">Assessments</h1>
 
-      <div className="flex space-x-4 mb-6 max-w-xl">
-        <div className="flex-1">
-          <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+      <div className="flex space-x-4 mb-6 max-w-4xl">
+        <div className="w-64">
+          <Select value={selectedScheme} onValueChange={setSelectedScheme} disabled={loadingSchemes}>
             <SelectTrigger>
-              <SelectValue placeholder="Select Branch" />
+              {loadingSchemes ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Loading...</span>
+                </div>
+              ) : (
+                <SelectValue placeholder="Select Scheme" />
+              )}
             </SelectTrigger>
             <SelectContent>
-              {filters.branches.map((branch) => (
-                <SelectItem key={branch.value} value={branch.value.toString()}>
-                  {branch.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="w-48">
-          <Select
-            value={selectedSemester === '' ? '' : selectedSemester.toString()}
-            onValueChange={(val) =>
-              setSelectedSemester(val === '' ? '' : Number(val))
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select Semester" />
-            </SelectTrigger>
-            <SelectContent>
-              {filters.semesters.map((sem) => (
-                <SelectItem key={sem.value} value={sem.value.toString()}>
-                  {sem.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="w-48">
-          <Select value={selectedScheme} onValueChange={setSelectedScheme}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select Scheme" />
-            </SelectTrigger>
-            <SelectContent>
-              {filters.schemes.map((scheme) => (
+              {schemes.map((scheme) => (
                 <SelectItem key={scheme.value} value={scheme.value.toString()}>
                   {scheme.label}
                 </SelectItem>
@@ -140,6 +173,51 @@ export default function AssessmentsPage() {
             </SelectContent>
           </Select>
         </div>
+
+        <div className="w-64">
+          <Select
+            value={selectedBranch}
+            onValueChange={setSelectedBranch}
+            disabled={!selectedScheme || loadingBranches}
+          >
+            <SelectTrigger>
+              {loadingBranches ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Loading...</span>
+                </div>
+              ) : (
+                <SelectValue placeholder="Select Branch" />
+              )}
+            </SelectTrigger>
+            <SelectContent>
+              {branches.map((branch) => (
+                <SelectItem key={branch.value} value={branch.value.toString()}>
+                  {branch.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="w-48">
+          <Select
+            value={selectedSemester}
+            onValueChange={setSelectedSemester}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select Semester" />
+            </SelectTrigger>
+            <SelectContent>
+              {semesters.map((sem) => (
+                <SelectItem key={sem.value} value={sem.value.toString()}>
+                  {sem.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         <Button
           className="min-w-[100px]"
           onClick={fetchFilteredCourses}
@@ -160,7 +238,9 @@ export default function AssessmentsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {searched && courses.length === 0 ? (
-            <p>No courses found for selected filters.</p>
+            <div className="col-span-full text-center py-8 text-muted-foreground">
+              No courses found for selected filters.
+            </div>
           ) : (
             courses.map((course) => (
               <Card key={course.id} className="hover:shadow-lg transition-shadow">

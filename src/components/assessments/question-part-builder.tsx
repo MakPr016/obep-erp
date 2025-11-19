@@ -167,12 +167,12 @@ export default function QuestionPartBuilder({ questionParts, setQuestionParts, c
                             <SelectValue placeholder="Select" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="L1">L1 - Remember</SelectItem>
-                            <SelectItem value="L2">L2 - Understand</SelectItem>
-                            <SelectItem value="L3">L3 - Apply</SelectItem>
-                            <SelectItem value="L4">L4 - Analyze</SelectItem>
-                            <SelectItem value="L5">L5 - Evaluate</SelectItem>
-                            <SelectItem value="L6">L6 - Create</SelectItem>
+                            <SelectItem value="CL1">CL1 - Remember</SelectItem>
+                            <SelectItem value="CL2">CL2 - Understand</SelectItem>
+                            <SelectItem value="CL3">CL3 - Apply</SelectItem>
+                            <SelectItem value="CL4">CL4 - Analyze</SelectItem>
+                            <SelectItem value="CL5">CL5 - Evaluate</SelectItem>
+                            <SelectItem value="CL6">CL6 - Create</SelectItem>
                           </SelectContent>
                         </Select>
                       </TableCell>

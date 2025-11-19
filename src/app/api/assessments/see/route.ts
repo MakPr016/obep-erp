@@ -2,14 +2,49 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+export async function GET(request: NextRequest) {
+  const supabase = await createClient();
+  const searchParams = request.nextUrl.searchParams;
+  const assignmentId = searchParams.get('assignmentId');
+  const courseId = searchParams.get('courseId');
+
+  let query = supabase
+    .from('see_assessments')
+    .select(`
+      *,
+      course_class_assignments!inner(
+        course_id,
+        courses(course_name, course_code),
+        classes(semester, section)
+      )
+    `)
+    .order('created_at', { ascending: false });
+
+  if (assignmentId) {
+    query = query.eq('course_class_assignment_id', assignmentId);
+  }
+
+  if (courseId) {
+    query = query.eq('course_class_assignments.course_id', courseId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ data });
+}
+
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const body = await request.json();
 
-  const { 
-    course_class_assignment_id, 
+  const {
+    course_class_assignment_id,
     total_marks,
-    question_parts 
+    question_parts
   } = body;
 
   // Create assessment

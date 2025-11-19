@@ -21,6 +21,29 @@ export async function POST(req: NextRequest) {
 
     if (error) throw error
 
+    // Update total_students for affected classes
+    const classCounts: Record<string, number> = {}
+    studentsWithActiveFlag.forEach((s: any) => {
+      if (s.class_id) {
+        classCounts[s.class_id] = (classCounts[s.class_id] || 0) + 1
+      }
+    })
+
+    for (const [classId, count] of Object.entries(classCounts)) {
+      const { data: classData } = await supabase
+        .from("classes")
+        .select("total_students")
+        .eq("id", classId)
+        .single()
+
+      if (classData) {
+        await supabase
+          .from("classes")
+          .update({ total_students: (classData.total_students || 0) + count })
+          .eq("id", classId)
+      }
+    }
+
     return NextResponse.json({ ok: true })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Failed to import students" }, { status: 500 })

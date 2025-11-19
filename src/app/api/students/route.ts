@@ -66,6 +66,20 @@ export async function POST(req: NextRequest) {
 
     if (error) throw error
 
+    // Update class total_students count
+    const { data: classData } = await supabase
+      .from("classes")
+      .select("total_students")
+      .eq("id", body.class_id)
+      .single()
+
+    if (classData) {
+      await supabase
+        .from("classes")
+        .update({ total_students: (classData.total_students || 0) + 1 })
+        .eq("id", body.class_id)
+    }
+
     return NextResponse.json(data)
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Failed to add student" }, { status: 500 })

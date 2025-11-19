@@ -4,7 +4,8 @@ import React, { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Loader2 } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
 import CsvUploadModal from "./csv-upload-modal"
 import AddStudentModal from "./add-student-modal"
 import EditStudentModal from "./edit-student-modal"
@@ -14,6 +15,9 @@ import { toast } from "sonner"
 export default function StudentPage() {
   const [students, setStudents] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+  const [loadingSchemes, setLoadingSchemes] = useState(false)
+  const [loadingBranches, setLoadingBranches] = useState(false)
+  const [loadingClasses, setLoadingClasses] = useState(false)
   const [page, setPage] = useState(1)
   const [limit] = useState(20)
   const [totalPages, setTotalPages] = useState(1)
@@ -30,45 +34,66 @@ export default function StudentPage() {
   const [selectedScheme, setSelectedScheme] = useState<string>("")
   const [selectedClass, setSelectedClass] = useState<string>("")
 
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([])
+
   useEffect(() => {
-    fetchBranches()
     fetchSchemes()
   }, [])
 
   useEffect(() => {
-    if (selectedBranch && selectedScheme) {
+    if (selectedScheme && selectedScheme !== "all") {
+      fetchBranches()
+    } else {
+      setBranches([])
+    }
+    setSelectedBranch("")
+    setSelectedClass("")
+    setClasses([])
+  }, [selectedScheme])
+
+  useEffect(() => {
+    if (selectedBranch && selectedBranch !== "all") {
       fetchClasses()
     } else {
       setClasses([])
       setSelectedClass("")
     }
-  }, [selectedBranch, selectedScheme])
+  }, [selectedBranch])
 
   useEffect(() => {
     fetchStudents()
   }, [page, selectedClass])
 
   const fetchBranches = async () => {
+    setLoadingBranches(true)
     try {
-      const res = await fetch("/api/branches")
+      const params = new URLSearchParams()
+      if (selectedScheme && selectedScheme !== "all") params.append("schemeId", selectedScheme)
+      const res = await fetch(`/api/branches?${params.toString()}`)
       const json = await res.json()
       setBranches(json.branches || [])
     } catch {
       setBranches([])
+    } finally {
+      setLoadingBranches(false)
     }
   }
 
   const fetchSchemes = async () => {
+    setLoadingSchemes(true)
     try {
       const res = await fetch("/api/schemes")
       const json = await res.json()
       setSchemes(json.schemes || [])
     } catch {
       setSchemes([])
+    } finally {
+      setLoadingSchemes(false)
     }
   }
 
   const fetchClasses = async () => {
+    setLoadingClasses(true)
     try {
       const params = new URLSearchParams()
       if (selectedBranch) params.append("branchid", selectedBranch)
@@ -78,6 +103,8 @@ export default function StudentPage() {
       setClasses(json.classes || [])
     } catch {
       setClasses([])
+    } finally {
+      setLoadingClasses(false)
     }
   }
 
@@ -92,6 +119,7 @@ export default function StudentPage() {
       const json = await res.json()
       setStudents(Array.isArray(json.students) ? json.students : [])
       setTotalPages(json.pagination?.totalpages || 1)
+      setSelectedStudentIds([])
     } catch {
       setStudents([])
       setTotalPages(1)
@@ -169,8 +197,42 @@ export default function StudentPage() {
     }
   }
 
-  if (loading) {
-    return <Skeleton className="h-40 w-full" />
+  const toggleSelectAll = () => {
+    if (selectedStudentIds.length === students.length && students.length > 0) {
+      setSelectedStudentIds([])
+    } else {
+      setSelectedStudentIds(students.map(s => s.id))
+    }
+  }
+
+  const toggleSelectStudent = (id: string) => {
+    if (selectedStudentIds.includes(id)) {
+      setSelectedStudentIds(selectedStudentIds.filter(sid => sid !== id))
+    } else {
+      setSelectedStudentIds([...selectedStudentIds, id])
+    }
+  }
+
+  const handleBulkAction = async (action: "activate" | "deactivate") => {
+    try {
+      const res = await fetch("/api/students/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentIds: selectedStudentIds,
+          action
+        })
+      })
+      if (res.ok) {
+        toast.success(`Students ${action}d successfully`)
+        fetchStudents()
+        setSelectedStudentIds([])
+      } else {
+        toast.error(`Failed to ${action} students`)
+      }
+    } catch {
+      toast.error(`Failed to ${action} students`)
+    }
   }
 
   return (
@@ -178,25 +240,27 @@ export default function StudentPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Students</h1>
         <div className="flex gap-2">
+          {selectedStudentIds.length > 0 && (
+            <>
+              <Button variant="outline" onClick={() => handleBulkAction("activate")}>Activate Selected</Button>
+              <Button variant="destructive" onClick={() => handleBulkAction("deactivate")}>Deactivate Selected</Button>
+            </>
+          )}
           <Button variant="outline" onClick={() => setShowAddModal(true)}>Add Student</Button>
           <Button onClick={() => setShowUploadModal(true)}>Upload CSV</Button>
         </div>
       </div>
       <div className="flex gap-4 mb-6">
-        <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+        <Select value={selectedScheme} onValueChange={setSelectedScheme} disabled={loadingSchemes}>
           <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Select Branch" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Branches</SelectItem>
-            {branches.map(branch => (
-              <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={selectedScheme} onValueChange={setSelectedScheme}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Select Scheme" />
+            {loadingSchemes ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Loading...</span>
+              </div>
+            ) : (
+              <SelectValue placeholder="Select Scheme" />
+            )}
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Schemes</SelectItem>
@@ -205,9 +269,36 @@ export default function StudentPage() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={selectedClass} onValueChange={setSelectedClass} disabled={!selectedBranch || !selectedScheme}>
+
+        <Select value={selectedBranch} onValueChange={setSelectedBranch} disabled={!selectedScheme || selectedScheme === "all" || loadingBranches}>
           <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Select Class" />
+            {loadingBranches ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Loading...</span>
+              </div>
+            ) : (
+              <SelectValue placeholder="Select Branch" />
+            )}
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Branches</SelectItem>
+            {branches.map(branch => (
+              <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={selectedClass} onValueChange={setSelectedClass} disabled={!selectedBranch || selectedBranch === "all" || loadingClasses}>
+          <SelectTrigger className="w-[200px]">
+            {loadingClasses ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Loading...</span>
+              </div>
+            ) : (
+              <SelectValue placeholder="Select Class" />
+            )}
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Classes</SelectItem>
@@ -219,52 +310,74 @@ export default function StudentPage() {
           </SelectContent>
         </Select>
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>USN</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Class</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {students.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={5} className="text-center text-gray-500">
-                No students found
-              </TableCell>
-            </TableRow>
-          ) : (
-            students.map(student => (
-              <TableRow key={student.id}>
-                <TableCell>{student.usn}</TableCell>
-                <TableCell>{student.name}</TableCell>
-                <TableCell>
-                  {student.class
-                    ? `${student.class.academic_year} Sem ${student.class.semester} ${student.class.section}`
-                    : "-"}
-                </TableCell>
-                <TableCell>{student.is_active ? "Active" : "Inactive"}</TableCell>
-                <TableCell className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => openEditModal(student)}>Edit</Button>
-                  {student.is_active ? (
-                    <Button size="sm" variant="destructive" onClick={() => openDeactivateDialog(student)}>Deactivate</Button>
-                  ) : (
-                    <Button size="sm" variant="outline" onClick={() => handleActivate(student)}>Activate</Button>
-                  )}
-                </TableCell>
+
+      {loading ? (
+        <div className="flex justify-center items-center h-40">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        <>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[50px]">
+                  <Checkbox
+                    checked={students.length > 0 && selectedStudentIds.length === students.length}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
+                <TableHead>USN</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Class</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-      <div className="flex justify-between mt-4">
-        <Button disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Previous</Button>
-        <div>Page {page} of {totalPages}</div>
-        <Button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next</Button>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {students.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-gray-500">
+                    No students found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                students.map(student => (
+                  <TableRow key={student.id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedStudentIds.includes(student.id)}
+                        onCheckedChange={() => toggleSelectStudent(student.id)}
+                      />
+                    </TableCell>
+                    <TableCell>{student.usn}</TableCell>
+                    <TableCell>{student.name}</TableCell>
+                    <TableCell>
+                      {student.class
+                        ? `${student.class.academic_year} Sem ${student.class.semester} ${student.class.section}`
+                        : "-"}
+                    </TableCell>
+                    <TableCell>{student.is_active ? "Active" : "Inactive"}</TableCell>
+                    <TableCell className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => openEditModal(student)}>Edit</Button>
+                      {student.is_active ? (
+                        <Button size="sm" variant="destructive" onClick={() => openDeactivateDialog(student)}>Deactivate</Button>
+                      ) : (
+                        <Button size="sm" variant="outline" onClick={() => handleActivate(student)}>Activate</Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+          <div className="flex justify-between mt-4">
+            <Button disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Previous</Button>
+            <div>Page {page} of {totalPages}</div>
+            <Button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next</Button>
+          </div>
+        </>
+      )}
+
       <CsvUploadModal
         open={showUploadModal}
         onClose={() => setShowUploadModal(false)}

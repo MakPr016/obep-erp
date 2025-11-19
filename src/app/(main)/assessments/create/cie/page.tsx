@@ -24,6 +24,18 @@ interface QuestionPart {
   subQuestions: SubQuestion[];
 }
 
+interface Assignment {
+  id: string;
+  classes: {
+    semester: number;
+    section: string;
+    academic_year: string;
+  };
+  users: {
+    full_name: string;
+  };
+}
+
 export default function CreateCIEAssessmentPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -35,9 +47,13 @@ export default function CreateCIEAssessmentPage() {
   const [questionParts, setQuestionParts] = useState<QuestionPart[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState<string>('');
+
   useEffect(() => {
     if (courseId) {
       fetchCourseOutcomes();
+      fetchAssignments();
     }
   }, [courseId]);
 
@@ -51,7 +67,26 @@ export default function CreateCIEAssessmentPage() {
     }
   };
 
+  const fetchAssignments = async () => {
+    try {
+      const response = await fetch(`/api/course-class-assignments?courseId=${courseId}`);
+      const result = await response.json();
+      setAssignments(result.data || []);
+
+      if (result.data && result.data.length === 1) {
+        setSelectedAssignmentId(result.data[0].id);
+      }
+    } catch {
+      toast.error('Failed to load faculty assignments');
+    }
+  };
+
   const handleSubmit = async () => {
+    if (!selectedAssignmentId) {
+      toast.error('Please select a faculty/class');
+      return;
+    }
+
     if (!assessmentType) {
       toast.error('Please select assessment type');
       return;
@@ -69,19 +104,22 @@ export default function CreateCIEAssessmentPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          course_id: courseId,
+          course_class_assignment_id: selectedAssignmentId,
           assessment_type: assessmentType,
           total_marks: totalMarks,
           question_parts: questionParts
         })
       });
 
-      if (!response.ok) throw new Error('Failed to create assessment');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create assessment');
+      }
 
       toast.success('Assessment created successfully');
       router.push('/assessments');
-    } catch {
-      toast.error('Failed to create assessment');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create assessment');
     } finally {
       setLoading(false);
     }
@@ -96,15 +134,31 @@ export default function CreateCIEAssessmentPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
+            <Label>Assigned Faculty</Label>
+            <Select value={selectedAssignmentId} onValueChange={setSelectedAssignmentId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select Faculty" />
+              </SelectTrigger>
+              <SelectContent>
+                {assignments.map((assignment) => (
+                  <SelectItem key={assignment.id} value={assignment.id}>
+                    {assignment.users.full_name} (Sem {assignment.classes.semester} {assignment.classes.section})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
             <Label>Assessment Type</Label>
             <Select value={assessmentType} onValueChange={setAssessmentType}>
               <SelectTrigger>
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="CIE1">CIE 1</SelectItem>
-                <SelectItem value="CIE2">CIE 2</SelectItem>
-                <SelectItem value="CIE3">CIE 3</SelectItem>
+                <SelectItem value="CIE-I">CIE-I</SelectItem>
+                <SelectItem value="CIE-II">CIE-II</SelectItem>
+                <SelectItem value="CIE-III">CIE-III</SelectItem>
               </SelectContent>
             </Select>
           </div>

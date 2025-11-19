@@ -15,7 +15,7 @@ export async function GET(
       *,
       course_class_assignments(
         courses(id, course_name, course_code),
-        classes(id, semester, section),
+        classes(id, semester, section, academic_year, branches(name)),
         users(full_name)
       )
     `)
