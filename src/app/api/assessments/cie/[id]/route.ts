@@ -4,9 +4,10 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient();
+  const { id } = await params;
 
   const { data: assessment, error: assessmentError } = await supabase
     .from('cie_assessments')
@@ -18,7 +19,7 @@ export async function GET(
         users(full_name)
       )
     `)
-    .eq('id', params.id)
+    .eq('id', id)
     .single();
 
   if (assessmentError) {
@@ -32,7 +33,7 @@ export async function GET(
       *,
       course_outcomes(co_number, description)
     `)
-    .eq('cie_assessment_id', params.id)
+    .eq('cie_assessment_id', id)
     .order('part_number')
     .order('question_number')
     .order('sub_question_label');
@@ -46,15 +47,16 @@ export async function GET(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient();
+  const { id } = await params;
 
   // Questions will be cascade deleted due to foreign key
   const { error } = await supabase
     .from('cie_assessments')
     .delete()
-    .eq('id', params.id);
+    .eq('id', id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
