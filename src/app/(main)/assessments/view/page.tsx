@@ -102,30 +102,39 @@ export default function ViewAssessmentsPage() {
                         Created: {new Date(assessment.created_at).toLocaleDateString()}
                       </p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="space-y-2">
                       <Button
                         size="sm"
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => router.push(`/assessments/details/cie/${assessment.id}`)}
+                        className="w-full"
+                        onClick={() => router.push(`/assessments/cie/${assessment.id}/select-class`)}
                       >
-                        <Eye className="h-4 w-4 mr-1" />
-                        View
+                        Enter Marks
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => router.push(`/assessments/edit/cie/${assessment.id}`)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleDelete(assessment.id, 'cie')}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => router.push(`/assessments/details/cie/${assessment.id}`)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => router.push(`/assessments/edit/cie/${assessment.id}`)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDelete(assessment.id, 'cie')}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

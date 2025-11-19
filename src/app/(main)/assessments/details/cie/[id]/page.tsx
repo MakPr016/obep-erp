@@ -175,6 +175,23 @@ export default function CIEAssessmentDetailsPage() {
                 </CardContent>
             </Card>
 
+            {/* Action Buttons */}
+            <div className="flex gap-4 mb-6">
+                <Button
+                    onClick={() => router.push(`/assessments/cie/${assessmentId}/marks`)}
+                    size="lg"
+                >
+                    Enter Marks
+                </Button>
+                <Button
+                    onClick={() => router.push(`/assessments/cie/${assessmentId}/attainment`)}
+                    variant="secondary"
+                    size="lg"
+                >
+                    View Attainment
+                </Button>
+            </div>
+
             <h2 className="text-xl font-bold mb-4">Question Paper Structure</h2>
 
             {Object.keys(partGroups).length === 0 ? (
