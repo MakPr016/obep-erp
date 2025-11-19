@@ -49,9 +49,8 @@ interface Course {
   id: string;
   course_name: string;
   course_code: string;
-  branch: { name: string } | null;
+  branch_name?: string;
   semester: number;
-  academic_year: string;
   scheme_name?: string;
 }
 
@@ -251,13 +250,10 @@ export default function AssessmentsPage() {
                 <CardContent>
                   <div className="space-y-2 text-sm">
                     <p>
-                      <strong>Branch:</strong> {course.branch?.name || '-'}
+                      <strong>Branch:</strong> {course.branch_name || '-'}
                     </p>
                     <p>
                       <strong>Semester:</strong> {course.semester}
-                    </p>
-                    <p>
-                      <strong>Academic Year:</strong> {course.academic_year || 'N/A'}
                     </p>
                     <p>
                       <strong>Scheme:</strong> {course.scheme_name || '-'}
