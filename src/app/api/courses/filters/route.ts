@@ -4,17 +4,18 @@ import { createClient } from "@/lib/supabase/server"
 
 export const runtime = 'nodejs'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await auth()
-    
     if (!session || !session.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const url = new URL(request.url)
+    const schemeId = url.searchParams.get("schemeId")
+
     const supabase = await createClient()
 
-    // Get branches with department info
     let branchQuery = supabase
       .from("branches")
       .select(`
@@ -30,14 +31,15 @@ export async function GET() {
       `)
       .order("name")
 
-    // Filter by department for HODs
+    if (schemeId) {
+      branchQuery = branchQuery.eq("scheme_id", schemeId)
+    }
     if (session.user.role === "hod") {
       branchQuery = branchQuery.eq("department_id", session.user.departmentId)
     }
 
     const { data: branches } = await branchQuery
 
-    // Transform branches data - department comes as a single object, not array
     const transformedBranches = branches?.map(b => {
       const dept = Array.isArray(b.departments) ? b.departments[0] : b.departments
       return {
@@ -50,13 +52,11 @@ export async function GET() {
       }
     }) || []
 
-    // Semesters 1-8
     const semesters = Array.from({ length: 8 }, (_, i) => ({
       value: i + 1,
       label: `Semester ${i + 1}`,
     }))
 
-    // Get unique course types
     const { data: courseTypesData } = await supabase
       .from("courses")
       .select("course_type")
@@ -68,13 +68,23 @@ export async function GET() {
       label: type,
     }))
 
+    const { data: schemes, error: schemesError } = await supabase
+      .from("schemes")
+      .select("id, name, year")
+      .eq("is_active", true)
+      .order("year", { ascending: false })
+
+    if (schemesError) {
+      return NextResponse.json({ error: schemesError.message }, { status: 500 })
+    }
+
     return NextResponse.json({
       branches: transformedBranches,
       semesters,
       courseTypes,
+      schemes: schemes || [],
     })
   } catch (error) {
-    console.error("Error fetching filters:", error)
     return NextResponse.json(
       { error: "Failed to fetch filters" },
       { status: 500 }

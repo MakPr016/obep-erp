@@ -6,6 +6,8 @@ export async function GET(req: NextRequest) {
   const supabase = await createClient()
   const { searchParams } = new URL(req.url)
   const classId = searchParams.get("class_id")
+  const courseId = searchParams.get("courseId")
+
   let query = supabase
     .from("course_class_assignments")
     .select(`
@@ -15,9 +17,14 @@ export async function GET(req: NextRequest) {
       users!course_class_assignments_faculty_id_fkey(id, full_name, email)
     `)
     .order("created_at", { ascending: false })
+
   if (classId) {
     query = query.eq("class_id", classId)
   }
+  if (courseId) {
+    query = query.eq("course_id", courseId)
+  }
+
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ data })

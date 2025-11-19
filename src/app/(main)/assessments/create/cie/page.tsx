@@ -1,4 +1,3 @@
-// src/app/(main)/assessments/create/cie/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -28,30 +27,26 @@ interface QuestionPart {
 export default function CreateCIEAssessmentPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const assignmentId = searchParams.get('assignmentId');
+  const courseId = searchParams.get('courseId');
 
   const [assessmentType, setAssessmentType] = useState('');
-  const [totalMarks, setTotalMarks] = useState(30);
+  const [totalMarks, setTotalMarks] = useState(40);
   const [courseOutcomes, setCourseOutcomes] = useState([]);
   const [questionParts, setQuestionParts] = useState<QuestionPart[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (assignmentId) {
+    if (courseId) {
       fetchCourseOutcomes();
     }
-  }, [assignmentId]);
+  }, [courseId]);
 
   const fetchCourseOutcomes = async () => {
     try {
-      // First get course ID from assignment
-      const assignmentRes = await fetch(`/api/course-assignments/${assignmentId}`);
-      const assignment = await assignmentRes.json();
-      
-      const response = await fetch(`/api/course-outcomes?courseId=${assignment.data.course_id}`);
+      const response = await fetch(`/api/course-outcomes?courseId=${courseId}`);
       const result = await response.json();
       setCourseOutcomes(result.data || []);
-    } catch (error) {
+    } catch {
       toast.error('Failed to load course outcomes');
     }
   };
@@ -74,7 +69,7 @@ export default function CreateCIEAssessmentPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          course_class_assignment_id: assignmentId,
+          course_id: courseId,
           assessment_type: assessmentType,
           total_marks: totalMarks,
           question_parts: questionParts
@@ -85,7 +80,7 @@ export default function CreateCIEAssessmentPage() {
 
       toast.success('Assessment created successfully');
       router.push('/assessments');
-    } catch (error) {
+    } catch {
       toast.error('Failed to create assessment');
     } finally {
       setLoading(false);
@@ -95,7 +90,6 @@ export default function CreateCIEAssessmentPage() {
   return (
     <div className="container mx-auto p-6 max-w-5xl">
       <h1 className="text-3xl font-bold mb-6">Create CIE Assessment</h1>
-
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>Assessment Details</CardTitle>
@@ -114,7 +108,6 @@ export default function CreateCIEAssessmentPage() {
               </SelectContent>
             </Select>
           </div>
-
           <div>
             <Label>Total Marks</Label>
             <Input
@@ -125,13 +118,11 @@ export default function CreateCIEAssessmentPage() {
           </div>
         </CardContent>
       </Card>
-
       <QuestionPartBuilder
         questionParts={questionParts}
         setQuestionParts={setQuestionParts}
         courseOutcomes={courseOutcomes}
       />
-
       <div className="flex gap-4 mt-6">
         <Button onClick={handleSubmit} disabled={loading}>
           {loading ? 'Creating...' : 'Create Assessment'}
