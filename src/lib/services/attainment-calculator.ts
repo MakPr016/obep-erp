@@ -1,22 +1,7 @@
-/**
- * CO Attainment Calculation Service
- * 
- * Calculates Course Outcome (CO) attainment based on student marks.
- * Uses 60% threshold for individual student attainment.
- * Determines attainment levels (0-3) based on percentage of students who attained.
- */
-
 export interface StudentMark {
     student_id: string;
     marks_obtained: number;
-}
-
-export interface QuestionAttainment {
-    question_id: string;
-    max_marks: number;
-    students_attempted: number;
-    students_attained: number;
-    attainment_percentage: number;
+    cie_question_id: string;
 }
 
 export interface COAttainment {
@@ -29,13 +14,23 @@ export interface COAttainment {
     attainment_level: 0 | 1 | 2 | 3;
 }
 
-/**
- * Check if a student attained based on marks and threshold
- * @param marksObtained - Marks scored by student
- * @param maxMarks - Maximum marks for the question
- * @param threshold - Threshold percentage (default 0.6 = 60%)
- * @returns true if student attained, false otherwise
- */
+export interface POContribution {
+    program_outcome_id: string;
+    po_number: string;
+    co_number: string;
+    mapping_strength: number;
+    co_attainment_value: number;
+    weighted_contribution: number;
+}
+
+export interface POAttainmentResult {
+    program_outcome_id: string;
+    po_number: string;
+    description: string;
+    calculated_attainment: number;
+    contributing_cos: POContribution[];
+}
+
 export function hasStudentAttained(
     marksObtained: number,
     maxMarks: number,
@@ -45,43 +40,40 @@ export function hasStudentAttained(
     return (marksObtained / maxMarks) >= threshold;
 }
 
-/**
- * Calculate attainment for a single question
- * @param studentMarks - Array of student marks for the question
- * @param maxMarks - Maximum marks for the question
- * @param threshold - Threshold percentage (default 0.6 = 60%)
- * @returns Question attainment details
- */
-export function calculateQuestionAttainment(
-    studentMarks: StudentMark[],
-    maxMarks: number,
+// Correctly handles student-wise aggregation
+export function calculateCoAttainmentStudentWise(
+    studentData: { 
+        student_id: string; 
+        total_marks_obtained: number; 
+        total_max_marks: number; 
+    }[],
     threshold: number = 0.6
-): Omit<QuestionAttainment, 'question_id'> {
-    const attempted = studentMarks.length;
-    const attained = studentMarks.filter(m =>
-        hasStudentAttained(m.marks_obtained, maxMarks, threshold)
-    ).length;
+): { students_attempted: number; students_attained: number; percentage: number; level: 0|1|2|3 } {
+    let attempted = 0;
+    let attained = 0;
 
-    const attainmentPercentage = attempted > 0 ? (attained / attempted) * 100 : 0;
+    for (const student of studentData) {
+        if (student.total_max_marks > 0) {
+            attempted++;
+            // Avoid division by zero
+            const percentage = student.total_marks_obtained / student.total_max_marks;
+            if (percentage >= threshold) {
+                attained++;
+            }
+        }
+    }
 
+    // Final percentage of students who attained the CO
+    const percentage = attempted > 0 ? (attained / attempted) * 100 : 0;
+    
     return {
-        max_marks: maxMarks,
         students_attempted: attempted,
         students_attained: attained,
-        attainment_percentage: attainmentPercentage
+        percentage: percentage,
+        level: determineAttainmentLevel(percentage)
     };
 }
 
-/**
- * Determine attainment level from percentage
- * Level 0: < 50% students attained
- * Level 1: 50-59% students attained
- * Level 2: 60-69% students attained
- * Level 3: >= 70% students attained
- * 
- * @param percentage - Attainment percentage
- * @returns Attainment level (0-3)
- */
 export function determineAttainmentLevel(percentage: number): 0 | 1 | 2 | 3 {
     if (percentage >= 70) return 3;
     if (percentage >= 60) return 2;
@@ -89,57 +81,10 @@ export function determineAttainmentLevel(percentage: number): 0 | 1 | 2 | 3 {
     return 0;
 }
 
-/**
- * Calculate CO attainment from multiple questions
- * Averages attainment percentage across all questions mapped to the CO
- * 
- * @param questionAttainments - Array of question attainment results
- * @returns CO attainment details
- */
-export function calculateCOAttainment(
-    questionAttainments: QuestionAttainment[]
-): Omit<COAttainment, 'course_outcome_id' | 'co_number' | 'description'> {
-    if (questionAttainments.length === 0) {
-        return {
-            students_attempted: 0,
-            students_attained: 0,
-            attainment_percentage: 0,
-            attainment_level: 0
-        };
-    }
-
-    // Average attainment percentage across all questions
-    const avgPercentage = questionAttainments.reduce(
-        (sum, q) => sum + q.attainment_percentage,
-        0
-    ) / questionAttainments.length;
-
-    // Use max attempted count across all questions
-    const totalAttempted = Math.max(
-        ...questionAttainments.map(q => q.students_attempted)
-    );
-
-    // Calculate total attained based on average percentage
-    const totalAttained = Math.round((avgPercentage / 100) * totalAttempted);
-
-    return {
-        students_attempted: totalAttempted,
-        students_attained: totalAttained,
-        attainment_percentage: avgPercentage,
-        attainment_level: determineAttainmentLevel(avgPercentage)
-    };
-}
-
-/**
- * Group questions by course outcome ID
- * @param questions - Array of questions with CO mappings
- * @returns Map of CO ID to question IDs
- */
 export function groupQuestionsByCO(
     questions: Array<{ id: string; course_outcome_id: string }>
 ): Map<string, string[]> {
     const grouped = new Map<string, string[]>();
-
     questions.forEach(q => {
         if (!q.course_outcome_id) return;
 
@@ -148,6 +93,59 @@ export function groupQuestionsByCO(
         }
         grouped.get(q.course_outcome_id)!.push(q.id);
     });
-
     return grouped;
+}
+
+export function calculatePOAttainment(
+    coResults: { co_id: string; co_number: string; attainment_level: number }[],
+    mappings: { co_id: string; po_id: string; po_number: string; po_description: string; strength: number }[]
+): POAttainmentResult[] {
+    const poMap = new Map<string, {
+        po_number: string;
+        description: string;
+        contributions: POContribution[];
+        totalStrength: number;
+        weightedSum: number;
+    }>();
+
+    mappings.forEach(mapping => {
+        const coResult = coResults.find(co => co.co_id === mapping.co_id);
+
+        if (coResult) {
+            if (!poMap.has(mapping.po_id)) {
+                poMap.set(mapping.po_id, {
+                    po_number: mapping.po_number,
+                    description: mapping.po_description,
+                    contributions: [],
+                    totalStrength: 0,
+                    weightedSum: 0
+                });
+            }
+
+            const poData = poMap.get(mapping.po_id)!;
+            const contribution = coResult.attainment_level * mapping.strength;
+
+            poData.contributions.push({
+                program_outcome_id: mapping.po_id,
+                po_number: mapping.po_number,
+                co_number: coResult.co_number,
+                mapping_strength: mapping.strength,
+                co_attainment_value: coResult.attainment_level,
+                weighted_contribution: contribution
+            });
+
+            poData.totalStrength += mapping.strength;
+            poData.weightedSum += contribution;
+        }
+    });
+
+    return Array.from(poMap.entries()).map(([poId, data]) => ({
+        program_outcome_id: poId,
+        po_number: data.po_number,
+        description: data.description,
+        calculated_attainment: data.totalStrength > 0
+            ? Number((data.weightedSum / data.totalStrength).toFixed(2))
+            : 0,
+        contributing_cos: data.contributions
+    })).sort((a, b) => a.po_number.localeCompare(b.po_number));
 }
