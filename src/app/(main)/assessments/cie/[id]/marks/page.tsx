@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Loader2, Save, Calculator } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, Calculator, Upload } from 'lucide-react';
 import { toast } from 'sonner';
+import MarksUploadModal from '@/components/assessments/marks-upload-modal';
 
 interface Question {
     id: string;
@@ -57,6 +58,7 @@ export default function CIEMarksEntryPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [changedMarks, setChangedMarks] = useState<Set<string>>(new Set());
+    const [showUploadModal, setShowUploadModal] = useState(false);
 
     useEffect(() => {
         fetchMarksData();
@@ -93,7 +95,6 @@ export default function CIEMarksEntryPage() {
                 const updatedMarks = student.marks.map(mark => {
                     if (mark.question_id !== questionId) return mark;
 
-                    // Validate max marks
                     if (numValue !== null && numValue > mark.max_marks) {
                         toast.error(`Marks cannot exceed ${mark.max_marks}`);
                         return mark;
@@ -113,14 +114,12 @@ export default function CIEMarksEntryPage() {
             })
         );
 
-        // Track changed marks
         setChangedMarks(prev => new Set(prev).add(`${studentId}-${questionId}`));
     };
 
     const handleSaveAll = async () => {
         setSaving(true);
         try {
-            // Prepare marks data
             const marksData = students.flatMap(student =>
                 student.marks
                     .filter(mark => mark.marks_obtained !== null)
@@ -154,10 +153,7 @@ export default function CIEMarksEntryPage() {
     };
 
     const handleCalculateAttainment = async () => {
-        // First save marks
         await handleSaveAll();
-
-        // Navigate to attainment page
         router.push(`/assessments/cie/${assessmentId}/attainment`);
     };
 
@@ -169,7 +165,6 @@ export default function CIEMarksEntryPage() {
         );
     }
 
-    // Group questions by part for display
     const questionsByPart = questions.reduce((acc, q) => {
         if (!acc[q.part_number]) acc[q.part_number] = [];
         acc[q.part_number].push(q);
@@ -194,6 +189,10 @@ export default function CIEMarksEntryPage() {
                     </div>
                 </div>
                 <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => setShowUploadModal(true)}>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Import CSV
+                    </Button>
                     <Button
                         onClick={handleSaveAll}
                         disabled={saving || changedMarks.size === 0}
@@ -285,6 +284,16 @@ export default function CIEMarksEntryPage() {
                     </div>
                 </CardContent>
             </Card>
+
+            <MarksUploadModal 
+                open={showUploadModal} 
+                onClose={() => setShowUploadModal(false)}
+                onSuccess={() => {
+                    fetchMarksData(); 
+                    setShowUploadModal(false);
+                }}
+                assessmentId={assessmentId}
+            />
         </div>
     );
 }

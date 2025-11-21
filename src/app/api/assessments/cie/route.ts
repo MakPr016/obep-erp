@@ -1,4 +1,3 @@
-// src/app/api/assessments/cie/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
@@ -25,6 +24,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (courseId) {
+    // Filter by the course_id on the joined table
     query = query.eq('course_class_assignments.course_id', courseId);
   }
 
@@ -41,8 +41,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
     const body = await request.json();
-    console.log("Received CIE Assessment Payload:", JSON.stringify(body, null, 2));
-
+    
     const {
       course_class_assignment_id,
       assessment_type,
@@ -54,7 +53,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Start transaction - Create assessment
+    // Validate questions before database interaction
+    for (const part of question_parts) {
+      if (part.subQuestions && Array.isArray(part.subQuestions)) {
+        for (const subQ of part.subQuestions) {
+          if (subQ.marks <= 0) {
+             return NextResponse.json({ error: `Invalid marks for Question ${part.question1Number}. Marks must be > 0.` }, { status: 400 });
+          }
+          if (!subQ.courseOutcomeId || subQ.courseOutcomeId.trim() === "") {
+             return NextResponse.json({ error: `Missing Course Outcome for Question ${part.question1Number}.` }, { status: 400 });
+          }
+        }
+      }
+    }
+
+    // Check for duplicate
+    const { data: existingAssessment } = await supabase
+      .from('cie_assessments')
+      .select('id')
+      .eq('course_class_assignment_id', course_class_assignment_id)
+      .eq('assessment_type', assessment_type)
+      .single();
+
+    if (existingAssessment) {
+        return NextResponse.json({ 
+            error: `A ${assessment_type} assessment already exists for this class. Please edit the existing assessment instead.` 
+        }, { status: 409 });
+    }
+
+    // Create Assessment
     const { data: assessment, error: assessmentError } = await supabase
       .from('cie_assessments')
       .insert({
@@ -66,21 +93,15 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (assessmentError) {
-      console.error("Error creating assessment:", assessmentError);
       return NextResponse.json({ error: assessmentError.message }, { status: 500 });
     }
 
-    if (!assessment) {
-      console.error("Assessment creation returned no data");
-      return NextResponse.json({ error: "Failed to create assessment record" }, { status: 500 });
-    }
-
-    // Create questions from parts
+    // Prepare Questions
     const questions = [];
     for (const part of question_parts) {
-      if (!part.subQuestions || !Array.isArray(part.subQuestions)) continue;
+      if (!part.subQuestions) continue;
 
-      // Question 1 of the pair
+      // Part A Question
       for (const subQ of part.subQuestions) {
         questions.push({
           cie_assessment_id: assessment.id,
@@ -94,7 +115,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Question 2 of the pair (mirrored structure)
+      // Part B Question (Mirror)
       for (const subQ of part.subQuestions) {
         questions.push({
           cie_assessment_id: assessment.id,
@@ -115,17 +136,14 @@ export async function POST(request: NextRequest) {
         .insert(questions);
 
       if (questionsError) {
-        console.error("Error inserting questions:", questionsError);
-        // Rollback: delete assessment
-        const supabaseRollback = await createClient();
-        await supabaseRollback.from('cie_assessments').delete().eq('id', assessment.id);
+        await supabase.from('cie_assessments').delete().eq('id', assessment.id);
         return NextResponse.json({ error: questionsError.message }, { status: 500 });
       }
     }
 
     return NextResponse.json({ data: assessment, message: 'Assessment created successfully' });
+
   } catch (error: any) {
-    console.error("Unexpected error in CIE POST:", error);
-    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
