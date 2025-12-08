@@ -1,34 +1,3 @@
-// 'use client';
-
-// import { useState, useEffect } from 'react';
-// import { useRouter } from 'next/navigation';
-// import { Plus, FileText, Loader2 } from 'lucide-react';
-// import { Button } from '@/components/ui/button';
-// import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-// import { toast } from 'sonner';
-// import {
-//   Select,
-//   SelectTrigger,
-//   SelectValue,
-//   SelectContent,
-//   SelectItem,
-// } from '@/components/ui/select';
-
-// interface Course {
-//   id: string;
-//   course_name: string;
-//   course_code: string;
-//   branch: { name: string } | null;
-//   semester: number;
-//   academic_year: string;
-//   scheme_name?: string;
-// }
-
-// interface FilterOption {
-//   value: string | number;
-//   label: string;
-// }
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -44,6 +13,7 @@ import {
   SelectContent,
   SelectItem,
 } from '@/components/ui/select';
+import { BloomsCheckButton } from '@/components/tools/blooms-check-button';
 
 interface Course {
   id: string;
@@ -148,7 +118,11 @@ export default function AssessmentsPage() {
 
   return (
     <div className="container mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">Assessments</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Assessments</h1>
+        {/* Added the BloomsCheckButton here */}
+        <BloomsCheckButton />
+      </div>
 
       <div className="flex space-x-4 mb-6 max-w-4xl">
         <div className="w-64">

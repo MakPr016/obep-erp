@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import QuestionPartBuilder from '@/components/assessments/question-part-builder';
+import { BloomsCheckButton } from '@/components/tools/blooms-check-button';
 
 interface SubQuestion {
   label: string;
@@ -127,56 +128,66 @@ export default function CreateCIEAssessmentPage() {
 
   return (
     <div className="container mx-auto p-6 max-w-5xl">
-      <h1 className="text-3xl font-bold mb-6">Create CIE Assessment</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Create CIE Assessment</h1>
+        <BloomsCheckButton />
+      </div>
+
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>Assessment Details</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label>Assigned Faculty</Label>
-            <Select value={selectedAssignmentId} onValueChange={setSelectedAssignmentId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select Faculty" />
-              </SelectTrigger>
-              <SelectContent>
-                {assignments.map((assignment) => (
-                  <SelectItem key={assignment.id} value={assignment.id}>
-                    {assignment.users.full_name} (Sem {assignment.classes.semester} {assignment.classes.section})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <CardContent>
+          {/* Changed from space-y-4 to a grid layout for row-based alignment */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-2">
+              <Label>Assigned Faculty</Label>
+              <Select value={selectedAssignmentId} onValueChange={setSelectedAssignmentId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Faculty" />
+                </SelectTrigger>
+                <SelectContent>
+                  {assignments.map((assignment) => (
+                    <SelectItem key={assignment.id} value={assignment.id}>
+                      {assignment.users.full_name} (Sem {assignment.classes.semester} {assignment.classes.section})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div>
-            <Label>Assessment Type</Label>
-            <Select value={assessmentType} onValueChange={setAssessmentType}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="CIE-I">CIE-I</SelectItem>
-                <SelectItem value="CIE-II">CIE-II</SelectItem>
-                <SelectItem value="CIE-III">CIE-III</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Total Marks</Label>
-            <Input
-              type="number"
-              value={totalMarks}
-              onChange={(e) => setTotalMarks(Number(e.target.value))}
-            />
+            <div className="space-y-2">
+              <Label>Assessment Type</Label>
+              <Select value={assessmentType} onValueChange={setAssessmentType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CIE-I">CIE-I</SelectItem>
+                  <SelectItem value="CIE-II">CIE-II</SelectItem>
+                  <SelectItem value="CIE-III">CIE-III</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Total Marks</Label>
+              <Input
+                type="number"
+                value={totalMarks}
+                onChange={(e) => setTotalMarks(Number(e.target.value))}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
+
       <QuestionPartBuilder
         questionParts={questionParts}
         setQuestionParts={setQuestionParts}
         courseOutcomes={courseOutcomes}
       />
+
       <div className="flex gap-4 mt-6">
         <Button onClick={handleSubmit} disabled={loading}>
           {loading ? 'Creating...' : 'Create Assessment'}
