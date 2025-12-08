@@ -1,151 +1,129 @@
-export interface StudentMark {
-    student_id: string;
-    marks_obtained: number;
-    cie_question_id: string;
-}
-
 export interface COAttainment {
-    course_outcome_id: string;
-    co_number: string;
-    description?: string;
-    students_attempted: number;
-    students_attained: number;
-    attainment_percentage: number;
-    attainment_level: 0 | 1 | 2 | 3;
-}
-
-export interface POContribution {
-    program_outcome_id: string;
-    po_number: string;
-    co_number: string;
-    mapping_strength: number;
-    co_attainment_value: number;
-    weighted_contribution: number;
+  courseoutcomeid: string;
+  conumber: string;
+  description: string;
+  studentsattempted: number;
+  studentsattained: number;
+  attainmentpercentage: number;
+  attainmentlevel: 0 | 1 | 2 | 3;
 }
 
 export interface POAttainmentResult {
-    program_outcome_id: string;
-    po_number: string;
-    description: string;
-    calculated_attainment: number;
-    contributing_cos: POContribution[];
-}
-
-export function hasStudentAttained(
-    marksObtained: number,
-    maxMarks: number,
-    threshold: number = 0.6
-): boolean {
-    if (maxMarks === 0) return false;
-    return (marksObtained / maxMarks) >= threshold;
-}
-
-// Correctly handles student-wise aggregation
-export function calculateCoAttainmentStudentWise(
-    studentData: { 
-        student_id: string; 
-        total_marks_obtained: number; 
-        total_max_marks: number; 
-    }[],
-    threshold: number = 0.6
-): { students_attempted: number; students_attained: number; percentage: number; level: 0|1|2|3 } {
-    let attempted = 0;
-    let attained = 0;
-
-    for (const student of studentData) {
-        if (student.total_max_marks > 0) {
-            attempted++;
-            // Avoid division by zero
-            const percentage = student.total_marks_obtained / student.total_max_marks;
-            if (percentage >= threshold) {
-                attained++;
-            }
-        }
-    }
-
-    // Final percentage of students who attained the CO
-    const percentage = attempted > 0 ? (attained / attempted) * 100 : 0;
-    
-    return {
-        students_attempted: attempted,
-        students_attained: attained,
-        percentage: percentage,
-        level: determineAttainmentLevel(percentage)
-    };
+  programoutcomeid: string;
+  ponumber: string;
+  description: string;
+  calculatedattainment: number;
+  contributingcos: {
+    programoutcomeid: string;
+    ponumber: string;
+    conumber: string;
+    mappingstrength: number;
+    coattainmentvalue: number;
+    weightedcontribution: number;
+  }[];
 }
 
 export function determineAttainmentLevel(percentage: number): 0 | 1 | 2 | 3 {
-    if (percentage >= 70) return 3;
-    if (percentage >= 60) return 2;
-    if (percentage >= 50) return 1;
-    return 0;
+  if (percentage >= 70) return 3;
+  if (percentage >= 65) return 2;
+  if (percentage >= 60) return 1;
+  return 0;
 }
 
-export function groupQuestionsByCO(
-    questions: Array<{ id: string; course_outcome_id: string }>
-): Map<string, string[]> {
-    const grouped = new Map<string, string[]>();
-    questions.forEach(q => {
-        if (!q.course_outcome_id) return;
+export function calculateCoAttainmentStudentWise(
+  studentData: { studentid: string; totalmarksobtained: number; totalmaxmarks: number }[],
+  threshold: number = 0.5
+): {
+  studentsattempted: number;
+  studentsattained: number;
+  percentage: number;
+  level: 0 | 1 | 2 | 3;
+} {
+  let attempted = 0;
+  let attained = 0;
 
-        if (!grouped.has(q.course_outcome_id)) {
-            grouped.set(q.course_outcome_id, []);
-        }
-        grouped.get(q.course_outcome_id)!.push(q.id);
-    });
-    return grouped;
+  for (const student of studentData) {
+    if (student.totalmaxmarks > 0) {
+      attempted++;
+      const percentage = student.totalmarksobtained / student.totalmaxmarks;
+      if (percentage >= threshold) {
+        attained++;
+      }
+    }
+  }
+
+  const percentage = attempted > 0 ? (attained / attempted) * 100 : 0;
+
+  return {
+    studentsattempted: attempted,
+    studentsattained: attained,
+    percentage: percentage,
+    level: determineAttainmentLevel(percentage),
+  };
 }
 
 export function calculatePOAttainment(
-    coResults: { co_id: string; co_number: string; attainment_level: number }[],
-    mappings: { co_id: string; po_id: string; po_number: string; po_description: string; strength: number }[]
+  coResults: { coid: string; conumber: string; attainmentlevel: number }[],
+  mappings: { coid: string; poid: string; ponumber: string; podescription: string; strength: number }[]
 ): POAttainmentResult[] {
-    const poMap = new Map<string, {
-        po_number: string;
-        description: string;
-        contributions: POContribution[];
-        totalStrength: number;
-        weightedSum: number;
-    }>();
+  const poMap = new Map<string, {
+    ponumber: string;
+    description: string;
+    contributions: POAttainmentResult['contributingcos'];
+    totalStrength: number;
+    weightedSum: number;
+  }>();
 
-    mappings.forEach(mapping => {
-        const coResult = coResults.find(co => co.co_id === mapping.co_id);
+  mappings.forEach(mapping => {
+    const coResult = coResults.find(co => co.coid === mapping.coid);
+    if (coResult) {
+      if (!poMap.has(mapping.poid)) {
+        poMap.set(mapping.poid, {
+          ponumber: mapping.ponumber,
+          description: mapping.podescription,
+          contributions: [],
+          totalStrength: 0,
+          weightedSum: 0
+        });
+      }
 
-        if (coResult) {
-            if (!poMap.has(mapping.po_id)) {
-                poMap.set(mapping.po_id, {
-                    po_number: mapping.po_number,
-                    description: mapping.po_description,
-                    contributions: [],
-                    totalStrength: 0,
-                    weightedSum: 0
-                });
-            }
+      const poData = poMap.get(mapping.poid)!;
+      const contribution = coResult.attainmentlevel * mapping.strength;
 
-            const poData = poMap.get(mapping.po_id)!;
-            const contribution = coResult.attainment_level * mapping.strength;
+      poData.contributions.push({
+        programoutcomeid: mapping.poid,
+        ponumber: mapping.ponumber,
+        conumber: coResult.conumber,
+        mappingstrength: mapping.strength,
+        coattainmentvalue: coResult.attainmentlevel,
+        weightedcontribution: contribution
+      });
 
-            poData.contributions.push({
-                program_outcome_id: mapping.po_id,
-                po_number: mapping.po_number,
-                co_number: coResult.co_number,
-                mapping_strength: mapping.strength,
-                co_attainment_value: coResult.attainment_level,
-                weighted_contribution: contribution
-            });
+      poData.totalStrength += mapping.strength;
+      poData.weightedSum += contribution;
+    }
+  });
 
-            poData.totalStrength += mapping.strength;
-            poData.weightedSum += contribution;
-        }
-    });
+  return Array.from(poMap.entries()).map(([poId, data]) => ({
+    programoutcomeid: poId,
+    ponumber: data.ponumber,
+    description: data.description,
+    calculatedattainment: data.totalStrength > 0 
+      ? Number((data.weightedSum / data.totalStrength).toFixed(2)) 
+      : 0,
+    contributingcos: data.contributions
+      .sort((a, b) => a.ponumber.localeCompare(b.ponumber))
+  })).sort((a, b) => a.ponumber.localeCompare(b.ponumber));
+}
 
-    return Array.from(poMap.entries()).map(([poId, data]) => ({
-        program_outcome_id: poId,
-        po_number: data.po_number,
-        description: data.description,
-        calculated_attainment: data.totalStrength > 0
-            ? Number((data.weightedSum / data.totalStrength).toFixed(2))
-            : 0,
-        contributing_cos: data.contributions
-    })).sort((a, b) => a.po_number.localeCompare(b.po_number));
+export function groupQuestionsByCO(questions: Array<{ id: string, courseoutcomeid: string }>): Map<string, string[]> {
+  const grouped = new Map<string, string[]>();
+  questions.forEach(q => {
+    if (!q.courseoutcomeid) return;
+    if (!grouped.has(q.courseoutcomeid)) {
+      grouped.set(q.courseoutcomeid, []);
+    }
+    grouped.get(q.courseoutcomeid)!.push(q.id);
+  });
+  return grouped;
 }

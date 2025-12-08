@@ -129,7 +129,21 @@ export async function GET(
             } as PoMapping;
         }) ?? []).filter((p): p is PoMapping => p !== null);
 
-        const finalPoAttainment = calculatePOAttainment(finalCoAttainment, flatMappings);
+        const coResultsForPO = finalCoAttainment.map(co => ({
+            coid: co.co_id,
+            conumber: co.co_number,
+            attainmentlevel: co.attainment_level
+        }));
+
+        const mappingsForPO = flatMappings.map(m => ({
+            coid: m.co_id,
+            poid: m.po_id,
+            ponumber: m.po_number,
+            podescription: m.po_description,
+            strength: m.strength
+        }));
+
+        const finalPoAttainment = calculatePOAttainment(coResultsForPO, mappingsForPO);
 
         return NextResponse.json({
             course: assignment.courses,

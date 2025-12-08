@@ -3,7 +3,6 @@ import { CourseList } from "@/components/courses/course-list"
 import { CourseFilters } from "@/components/courses/course-filters"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { GraduationCap } from "lucide-react"
 
 export default function CoursesPage() {
   return (

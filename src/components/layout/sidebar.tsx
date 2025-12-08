@@ -30,7 +30,7 @@ export function Sidebar({ session }: SidebarProps) {
     { name: "Branches", href: "/branches", icon: Settings, roles: ["admin"] },
     { name: "Classes", href: "/classes", icon: Layers, roles: ["admin", "hod", "faculty"] },
     { name: "Students", href: "/students", icon: Users, roles: ["admin", "hod", "faculty"] },
-    { name: "Faculty", href: "/faculties", icon: Users, roles: ["admin", "hod"] },
+    { name: "Faculty", href: "/faculty", icon: Users, roles: ["admin", "hod"] },
     { name: "Assessments", href: "/assessments", icon: FileText, roles: ["admin", "hod", "faculty"] },
     { name: "Reports", href: "/reports", icon: BarChart3, roles: ["admin", "hod"] },
     { name: "Settings", href: "/settings", icon: Settings, roles: ["admin"] },
