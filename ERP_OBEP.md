@@ -280,7 +280,8 @@ The application needs to handle complex CO (Course Outcome) attainment calculati
 - `GET /api/course-classes/:courseClassId/co-attainment` - Overall CO attainment
 - `GET /api/course-classes/:courseClassId/po-attainment` - Overall PO attainment
 - `GET /api/students/:studentId/attainment` - Individual student attainment
-- `GET /api/branches/:branchId/attainment` - Branch-level attainmentt
+- `GET /api/branches/:branchId/attainment` - Branch-level attainment
+- `GET /api/departments/:deptId/attainment` - Department-level attainment
 
 ### Export Routes
 
@@ -404,7 +405,7 @@ The application needs to handle complex CO (Course Outcome) attainment calculati
 
 ### Reports \& Analytics
 
-- `/course-classes/:courseClassId/attainment`
+- `/course-classes/:courseClassId/attainment` - Detailed attainment report
   - CO-wise attainment table
   - PO-wise attainment table
   - Student-wise performance

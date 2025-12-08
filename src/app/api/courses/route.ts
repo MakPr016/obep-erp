@@ -7,7 +7,7 @@ export const runtime = 'nodejs'
 export async function GET(request: NextRequest) {
   try {
     const session = await auth()
-    
+
     if (!session || !session.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
@@ -55,16 +55,16 @@ export async function GET(request: NextRequest) {
         .from("course_class_assignments")
         .select("course_id")
         .eq("faculty_id", session.user.id)
-      
+
       const courseIds = assignedCourses?.map(a => a.course_id) || []
-      
+
       if (courseIds.length === 0) {
         return NextResponse.json({
           courses: [],
           pagination: { page, limit, total: 0, totalPages: 0 },
         })
       }
-      
+
       query = query.in("id", courseIds)
     }
 
@@ -146,8 +146,31 @@ export async function POST(request: NextRequest) {
     if (!session || !session.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+
+    if (session.user.role === 'faculty') {
+      return NextResponse.json({ error: "Forbidden: Faculty cannot create courses" }, { status: 403 })
+    }
+
     const payload = await request.json()
     const supabase = await createClient()
+
+    if (session.user.role === 'hod') {
+      // Verify branch belongs to HOD's department
+      const { data: branch, error: branchError } = await supabase
+        .from('branches')
+        .select('department_id')
+        .eq('id', payload.branch_id)
+        .single()
+
+      if (branchError || !branch) {
+        return NextResponse.json({ error: "Invalid branch" }, { status: 400 })
+      }
+
+      if (branch.department_id !== session.user.departmentId) {
+        return NextResponse.json({ error: "Forbidden: You can only create courses for your department" }, { status: 403 })
+      }
+    }
+
     const { data, error } = await supabase
       .from("courses")
       .insert(payload)

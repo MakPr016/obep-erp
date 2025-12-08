@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { auth } from "@/auth";
 
 /**
  * GET /api/courses/[id]/classes
@@ -10,15 +11,20 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const session = await auth();
+        if (!session || !session.user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         const { id } = await params;
         const supabase = await createClient();
 
-        // Fetch all course-class assignments for this course
-        const { data: assignments, error } = await supabase
+        let query = supabase
             .from('course_class_assignments')
             .select(`
         id,
         academic_year,
+        faculty_id,
         classes(
           id,
           semester,
@@ -30,6 +36,13 @@ export async function GET(
         users(full_name)
       `)
             .eq('course_id', id);
+
+        // If faculty, only show their assigned classes
+        if (session.user.role === 'faculty') {
+            query = query.eq('faculty_id', session.user.id);
+        }
+
+        const { data: assignments, error } = await query;
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });

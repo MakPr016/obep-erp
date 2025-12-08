@@ -7,15 +7,19 @@ import { Skeleton } from "@/components/ui/skeleton"
 import AddClassModal from "./add-class-modal"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { toast } from "sonner"
+import { useSession } from "next-auth/react"
 
 export default function ClassesPage() {
   const router = useRouter()
+  const { data: session } = useSession()
   const [classes, setClasses] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
   const [branches, setBranches] = useState<any[]>([])
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null)
+
+  const isFaculty = session?.user?.role === "faculty"
 
   useEffect(() => {
     fetchClasses()
@@ -81,7 +85,7 @@ export default function ClassesPage() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Classes</h1>
-        <Button onClick={() => setShowAddModal(true)}>Add Class</Button>
+        {!isFaculty && <Button onClick={() => setShowAddModal(true)}>Add Class</Button>}
       </div>
 
       <Table>
@@ -92,13 +96,13 @@ export default function ClassesPage() {
             <TableHead>Section</TableHead>
             <TableHead>Academic Year</TableHead>
             <TableHead>Total Students</TableHead>
-            <TableHead>Actions</TableHead>
+            {!isFaculty && <TableHead>Actions</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
           {classes.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="text-center text-gray-500">
+              <TableCell colSpan={isFaculty ? 5 : 6} className="text-center text-gray-500">
                 No classes found
               </TableCell>
             </TableRow>
@@ -110,11 +114,13 @@ export default function ClassesPage() {
                 <TableCell>{cls.section}</TableCell>
                 <TableCell>{cls.academic_year}</TableCell>
                 <TableCell>{cls.total_students}</TableCell>
-                <TableCell>
-                  <Button variant="destructive" size="sm" onClick={(e) => { e.stopPropagation(); openDeleteDialog(cls.id) }}>
-                    Delete
-                  </Button>
-                </TableCell>
+                {!isFaculty && (
+                  <TableCell>
+                    <Button variant="destructive" size="sm" onClick={(e) => { e.stopPropagation(); openDeleteDialog(cls.id) }}>
+                      Delete
+                    </Button>
+                  </TableCell>
+                )}
               </TableRow>
             ))
           )}

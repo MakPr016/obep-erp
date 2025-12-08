@@ -9,10 +9,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Plus, Trash2, ArrowLeft } from "lucide-react"
+import { useSession } from "next-auth/react"
 
 export default function ClassAssignmentsPage() {
   const params = useParams()
   const router = useRouter()
+  const { data: session } = useSession()
   const classId = Array.isArray(params?.id) ? params.id[0] : params?.id
   const [classInfo, setClassInfo] = useState<any>(null)
   const [assignments, setAssignments] = useState<any[]>([])
@@ -20,6 +22,8 @@ export default function ClassAssignmentsPage() {
   const [faculty, setFaculty] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [assignmentRows, setAssignmentRows] = useState<any[]>([{ courseId: "", facultyId: "" }])
+
+  const isFaculty = session?.user?.role === "faculty"
 
   useEffect(() => {
     if (classId) {
@@ -151,53 +155,55 @@ export default function ClassAssignmentsPage() {
         )}
       </div>
 
-      <div className="bg-white border rounded-lg p-6 mb-6">
-        <h2 className="text-lg font-semibold mb-4">Add New Assignments</h2>
-        <div className="space-y-3">
-          {assignmentRows.map((row, index) => (
-            <div key={index} className="flex gap-3 items-end">
-              <div className="flex-1">
-                <label className="block text-sm font-medium mb-1">Course</label>
-                <Select value={row.courseId} onValueChange={(val) => updateRow(index, "courseId", val)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Course" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {courses.map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.course_name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+      {!isFaculty && (
+        <div className="bg-white border rounded-lg p-6 mb-6">
+          <h2 className="text-lg font-semibold mb-4">Add New Assignments</h2>
+          <div className="space-y-3">
+            {assignmentRows.map((row, index) => (
+              <div key={index} className="flex gap-3 items-end">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium mb-1">Course</label>
+                  <Select value={row.courseId} onValueChange={(val) => updateRow(index, "courseId", val)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Course" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {courses.map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.course_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium mb-1">Faculty</label>
+                  <Select value={row.facultyId} onValueChange={(val) => updateRow(index, "facultyId", val)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Faculty" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {faculty.map(f => (
+                        <SelectItem key={f.id} value={f.id}>{f.full_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button variant="destructive" size="icon" onClick={() => removeRow(index)} disabled={assignmentRows.length === 1}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
-              <div className="flex-1">
-                <label className="block text-sm font-medium mb-1">Faculty</label>
-                <Select value={row.facultyId} onValueChange={(val) => updateRow(index, "facultyId", val)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Faculty" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {faculty.map(f => (
-                      <SelectItem key={f.id} value={f.id}>{f.full_name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button variant="destructive" size="icon" onClick={() => removeRow(index)} disabled={assignmentRows.length === 1}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
+            ))}
+          </div>
+          <div className="flex gap-2 mt-4">
+            <Button variant="outline" onClick={addRow}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Row
+            </Button>
+            <Button onClick={handleSaveAssignments} disabled={loading}>
+              Save Assignments
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-2 mt-4">
-          <Button variant="outline" onClick={addRow}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Row
-          </Button>
-          <Button onClick={handleSaveAssignments} disabled={loading}>
-            Save Assignments
-          </Button>
-        </div>
-      </div>
+      )}
 
       <div className="bg-white border rounded-lg p-6">
         <h2 className="text-lg font-semibold mb-4">Current Assignments</h2>
@@ -206,13 +212,13 @@ export default function ClassAssignmentsPage() {
             <TableRow>
               <TableHead>Course</TableHead>
               <TableHead>Faculty</TableHead>
-              <TableHead>Actions</TableHead>
+              {!isFaculty && <TableHead>Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {assignments.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} className="text-center text-gray-500">
+                <TableCell colSpan={isFaculty ? 2 : 3} className="text-center text-gray-500">
                   No assignments found
                 </TableCell>
               </TableRow>
@@ -221,11 +227,13 @@ export default function ClassAssignmentsPage() {
                 <TableRow key={a.id}>
                   <TableCell>{a.courses?.course_name || "-"}</TableCell>
                   <TableCell>{a.users?.full_name || "-"}</TableCell>
-                  <TableCell>
-                    <Button variant="destructive" size="sm" onClick={() => handleDeleteAssignment(a.id)}>
-                      Delete
-                    </Button>
-                  </TableCell>
+                  {!isFaculty && (
+                    <TableCell>
+                      <Button variant="destructive" size="sm" onClick={() => handleDeleteAssignment(a.id)}>
+                        Delete
+                      </Button>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}
