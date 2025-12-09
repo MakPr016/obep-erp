@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils"
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   GraduationCap,
@@ -10,51 +10,89 @@ import {
   FileText,
   BarChart3,
   Settings,
-  Layers
-} from "lucide-react"
-import { useState } from "react"
+  Layers,
+} from "lucide-react";
+import { useState } from "react";
 
 interface SidebarProps {
-  session: any
+  session: any;
 }
 
 export function Sidebar({ session }: SidebarProps) {
-  const pathname = usePathname()
-  const userRole = session?.user?.role || ""
+  const pathname = usePathname();
+  const userRole = session?.user?.role || "";
 
-  const dashboardPath = `/${userRole}`
+  const dashboardPath = `/${userRole}`;
 
   const navigation = [
-    { name: "Dashboard", href: dashboardPath, icon: LayoutDashboard, roles: ["admin", "hod", "faculty"] },
-    { name: "Courses", href: "/courses", icon: GraduationCap, roles: ["admin", "hod", "faculty"] },
+    {
+      name: "Dashboard",
+      href: dashboardPath,
+      icon: LayoutDashboard,
+      roles: ["admin", "hod", "faculty"],
+    },
+    {
+      name: "Courses",
+      href: "/courses",
+      icon: GraduationCap,
+      roles: ["admin", "hod", "faculty"],
+    },
     { name: "Branches", href: "/branches", icon: Settings, roles: ["admin"] },
-    { name: "Classes", href: "/classes", icon: Layers, roles: ["admin", "hod", "faculty"] },
-    { name: "Students", href: "/students", icon: Users, roles: ["admin", "hod", "faculty"] },
+    {
+      name: "Classes",
+      href: "/classes",
+      icon: Layers,
+      roles: ["admin", "hod", "faculty"],
+    },
+    {
+      name: "Students",
+      href: "/students",
+      icon: Users,
+      roles: ["admin", "hod", "faculty"],
+    },
     { name: "Faculty", href: "/faculty", icon: Users, roles: ["admin", "hod"] },
-    { name: "Assessments", href: "/assessments", icon: FileText, roles: ["admin", "hod", "faculty"] },
-    { name: "Reports", href: "/reports", icon: BarChart3, roles: ["admin", "hod"] },
+    {
+      name: "Assessments",
+      href: "/assessments",
+      icon: FileText,
+      roles: ["admin", "hod", "faculty"],
+    },
+    {
+      name: "Assignments",
+      href: "/assignments",
+      icon: FileText,
+      roles: ["admin", "hod", "faculty"],
+    },
+    {
+      name: "Reports",
+      href: "/reports",
+      icon: BarChart3,
+      roles: ["admin", "hod"],
+    },
     { name: "Settings", href: "/settings", icon: Settings, roles: ["admin"] },
-  ]
+  ];
 
   const filteredNavigation = navigation.filter((item) =>
-    item.roles.includes(userRole)
-  )
+    item.roles.includes(userRole),
+  );
 
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
     <aside
       className={cn(
         "border-r bg-white h-screen flex flex-col transition-width duration-300",
-        collapsed ? "w-16" : "w-64"
+        collapsed ? "w-16" : "w-64",
       )}
     >
-      <div className="flex flex-col flex-grow">
+      <div className="flex flex-col grow">
         <div className="flex items-center justify-between p-6 border-b">
           {!collapsed && (
             <div>
               <h1 className="text-2xl font-bold text-primary">OBEP</h1>
-              <p className="text-xs text-muted-foreground">Outcome Based Education</p>
+              <p className="text-xs text-muted-foreground">
+                Outcome Based Education
+              </p>
             </div>
           )}
           <button
@@ -72,7 +110,11 @@ export function Sidebar({ session }: SidebarProps) {
                 strokeWidth={2}
                 viewBox="0 0 24 24"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 5l7 7-7 7"
+                />
               </svg>
             ) : (
               <svg
@@ -82,7 +124,11 @@ export function Sidebar({ session }: SidebarProps) {
                 strokeWidth={2}
                 viewBox="0 0 24 24"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
             )}
           </button>
@@ -91,7 +137,7 @@ export function Sidebar({ session }: SidebarProps) {
         <nav className="flex-1 space-y-1 px-2">
           {filteredNavigation.map((item) => {
             const isActive =
-              pathname === item.href || pathname.startsWith(item.href + "/")
+              pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link
                 key={item.name}
@@ -101,13 +147,13 @@ export function Sidebar({ session }: SidebarProps) {
                   isActive
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-slate-100 hover:text-foreground",
-                  collapsed && "justify-center px-1"
+                  collapsed && "justify-center px-1",
                 )}
               >
                 <item.icon className="h-5 w-5" aria-hidden="true" />
                 {!collapsed && item.name}
               </Link>
-            )
+            );
           })}
         </nav>
 
@@ -121,5 +167,5 @@ export function Sidebar({ session }: SidebarProps) {
         )}
       </div>
     </aside>
-  )
+  );
 }
