@@ -1,0 +1,76 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { auth } from "@/auth";
+
+/**
+ * GET /api/courses/[id]/classes
+ * Fetch all classes (course-class assignments) for a specific course
+ */
+export async function GET(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const session = await auth();
+        if (!session || !session.user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { id } = await params;
+        const supabase = await createClient();
+
+        let query = supabase
+            .from('course_class_assignments')
+            .select(`
+        id,
+        academic_year,
+        faculty_id,
+        classes(
+          id,
+          semester,
+          section,
+          academic_year,
+          total_students,
+          branches(name)
+        ),
+        users(full_name)
+      `)
+            .eq('course_id', id);
+
+        // If faculty, only show their assigned classes
+        if (session.user.role === 'faculty') {
+            query = query.eq('faculty_id', session.user.id);
+        }
+
+        const { data: assignments, error } = await query;
+
+        if (error) {
+            return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+
+        // Transform the data for easier consumption
+        const classes = assignments?.map(assignment => {
+            const classData = Array.isArray(assignment.classes) ? assignment.classes[0] : assignment.classes;
+            const branchData = Array.isArray(classData?.branches) ? classData.branches[0] : classData?.branches;
+            const userData = Array.isArray(assignment.users) ? assignment.users[0] : assignment.users;
+
+            return {
+                id: assignment.id, // This is the course_class_assignment_id
+                class_id: classData?.id,
+                semester: classData?.semester,
+                section: classData?.section,
+                academic_year: classData?.academic_year || assignment.academic_year,
+                branch_name: branchData?.name || 'N/A',
+                faculty_name: userData?.full_name || 'N/A',
+                student_count: classData?.total_students || 0
+            };
+        }) || [];
+
+        return NextResponse.json({ classes });
+    } catch (error: any) {
+        console.error('Error fetching course classes:', error);
+        return NextResponse.json({
+            error: error.message || 'Internal server error'
+        }, { status: 500 });
+    }
+}
