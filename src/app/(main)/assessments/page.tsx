@@ -1,18 +1,19 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Plus, FileText, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "sonner";
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Plus, FileText, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from 'sonner';
 import {
   Select,
   SelectTrigger,
   SelectValue,
   SelectContent,
   SelectItem,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
+import { BloomsCheckButton } from '@/components/tools/blooms-check-button';
 
 interface Course {
   id: string;
@@ -28,7 +29,7 @@ interface FilterOption {
   label: string;
 }
 
-export default function AssignmentsPage() {
+export default function AssessmentsPage() {
   const router = useRouter();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(false);
@@ -40,9 +41,9 @@ export default function AssignmentsPage() {
   const [loadingSchemes, setLoadingSchemes] = useState(false);
   const [loadingBranches, setLoadingBranches] = useState(false);
 
-  const [selectedScheme, setSelectedScheme] = useState<string>("");
-  const [selectedBranch, setSelectedBranch] = useState<string>("");
-  const [selectedSemester, setSelectedSemester] = useState<string>("");
+  const [selectedScheme, setSelectedScheme] = useState<string>('');
+  const [selectedBranch, setSelectedBranch] = useState<string>('');
+  const [selectedSemester, setSelectedSemester] = useState<string>('');
 
   const [searched, setSearched] = useState(false);
 
@@ -56,82 +57,76 @@ export default function AssignmentsPage() {
     } else {
       setBranches([]);
     }
-    setSelectedBranch("");
+    setSelectedBranch('');
   }, [selectedScheme]);
 
-  async function fetchSchemes() {
+  const fetchSchemes = async () => {
     setLoadingSchemes(true);
     try {
-      const res = await fetch("/api/courses/filters");
+      const res = await fetch('/api/courses/filters');
       const data = await res.json();
       setSchemes(
         data.schemes?.map((s: any) => ({
           value: s.id,
           label: s.name,
-        })) || [],
+        })) || []
       );
       setSemesters(data.semesters || []);
     } catch {
-      toast.error("Failed to load schemes");
+      toast.error('Failed to load schemes');
     } finally {
       setLoadingSchemes(false);
     }
-  }
+  };
 
-  async function fetchBranches(schemeId: string) {
+  const fetchBranches = async (schemeId: string) => {
     setLoadingBranches(true);
     try {
       const res = await fetch(`/api/courses/filters?schemeId=${schemeId}`);
       const data = await res.json();
       setBranches(
-        data.branches?.map((b: any) => ({
+        data.branches.map((b: any) => ({
           value: b.id,
           label: b.name,
-        })) || [],
+        })) || []
       );
     } catch {
-      toast.error("Failed to load branches");
+      toast.error('Failed to load branches');
     } finally {
       setLoadingBranches(false);
     }
-  }
+  };
 
-  async function fetchFilteredCourses() {
+  const fetchFilteredCourses = async () => {
     setLoading(true);
     setSearched(true);
     try {
       const params = new URLSearchParams();
-      if (selectedBranch) params.append("branchId", selectedBranch);
-      if (selectedSemester) params.append("semester", selectedSemester);
-      if (selectedScheme) params.append("schemeId", selectedScheme);
-
+      if (selectedBranch) params.append('branchId', selectedBranch);
+      if (selectedSemester) params.append('semester', selectedSemester);
+      if (selectedScheme) params.append('schemeId', selectedScheme);
       const res = await fetch(`/api/courses?${params.toString()}`);
       const data = await res.json();
       setCourses(data.courses || []);
     } catch {
-      toast.error("Failed to load courses");
+      toast.error('Failed to load courses');
       setCourses([]);
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="container mx-auto p-6">
-      {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Assignments</h1>
+        <h1 className="text-3xl font-bold">Assessments</h1>
+        {/* Added the BloomsCheckButton here */}
+        <BloomsCheckButton />
       </div>
 
-      {/* Filters */}
       <div className="flex space-x-4 mb-6 max-w-4xl">
-        {/* Scheme */}
         <div className="w-64">
-          <Select
-            value={selectedScheme}
-            onValueChange={setSelectedScheme}
-            disabled={loadingSchemes}
-          >
+          <Select value={selectedScheme} onValueChange={setSelectedScheme} disabled={loadingSchemes}>
             <SelectTrigger>
               {loadingSchemes ? (
                 <div className="flex items-center gap-2">
@@ -152,7 +147,6 @@ export default function AssignmentsPage() {
           </Select>
         </div>
 
-        {/* Branch */}
         <div className="w-64">
           <Select
             value={selectedBranch}
@@ -179,9 +173,11 @@ export default function AssignmentsPage() {
           </Select>
         </div>
 
-        {/* Semester */}
         <div className="w-48">
-          <Select value={selectedSemester} onValueChange={setSelectedSemester}>
+          <Select
+            value={selectedSemester}
+            onValueChange={setSelectedSemester}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Select Semester" />
             </SelectTrigger>
@@ -195,88 +191,78 @@ export default function AssignmentsPage() {
           </Select>
         </div>
 
-        {/* Search Button */}
         <Button
           className="min-w-[100px]"
           onClick={fetchFilteredCourses}
-          disabled={
-            loading || !selectedBranch || !selectedSemester || !selectedScheme
-          }
+          disabled={loading || !selectedBranch || !selectedSemester || !selectedScheme}
         >
           {loading ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
-            "Search"
+            <span>Search</span>
           )}
         </Button>
       </div>
 
-      {/* Results */}
-      <div className="mt-4">
-        {loading && (
-          <div className="flex justify-center items-center my-4">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        )}
-
+      {loading ? (
+        <div className="flex justify-center items-center my-8">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {searched && !loading && courses.length === 0 ? (
+          {searched && courses.length === 0 ? (
             <div className="col-span-full text-center py-8 text-muted-foreground">
               No courses found for selected filters.
             </div>
           ) : (
             courses.map((course) => (
-              <Card
-                key={course.id}
-                className="hover:shadow-lg transition-shadow"
-              >
+              <Card key={course.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
-                  <CardTitle className="text-lg">
-                    {course.course_name}
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    {course.course_code}
-                  </p>
+                  <CardTitle className="text-lg">{course.course_name}</CardTitle>
+                  <p className="text-sm text-muted-foreground">{course.course_code}</p>
                 </CardHeader>
-
                 <CardContent>
                   <div className="space-y-2 text-sm">
                     <p>
-                      <strong>Branch:</strong> {course.branch_name || "-"}
+                      <strong>Branch:</strong> {course.branch_name || '-'}
                     </p>
                     <p>
                       <strong>Semester:</strong> {course.semester}
                     </p>
                     <p>
-                      <strong>Scheme:</strong> {course.scheme_name || "-"}
+                      <strong>Scheme:</strong> {course.scheme_name || '-'}
                     </p>
                   </div>
-
                   <div className="mt-4 space-y-2">
                     <Button
                       className="w-full"
                       variant="outline"
                       onClick={() =>
-                        router.push(
-                          `/assignments/create/${course.id}?branchId=${selectedBranch}&semester=${selectedSemester}&schemeId=${selectedScheme}`,
-                        )
+                        router.push(`/assessments/create/cie?courseId=${course.id}`)
                       }
                     >
                       <Plus className="mr-2 h-4 w-4" />
-                      Add Assignment
+                      Add CIE Assessment
                     </Button>
-
+                    <Button
+                      className="w-full"
+                      variant="outline"
+                      onClick={() =>
+                        router.push(`/assessments/create/see?courseId=${course.id}`)
+                      }
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add SEE Assessment
+                    </Button>
                     <Button
                       className="w-full"
                       variant="secondary"
                       onClick={() =>
-                        router.push(
-                          `/assignments/course/${course.id}?branchId=${selectedBranch}&semester=${selectedSemester}&schemeId=${selectedScheme}`,
-                        )
+                        router.push(`/assessments/view?courseId=${course.id}`)
                       }
                     >
                       <FileText className="mr-2 h-4 w-4" />
-                      View Assignments
+                      View Assessments
                     </Button>
                   </div>
                 </CardContent>
@@ -284,7 +270,7 @@ export default function AssignmentsPage() {
             ))
           )}
         </div>
-      </div>
+      )}
     </div>
   );
 }

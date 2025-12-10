@@ -26,6 +26,8 @@ type AssignmentRow = {
   branchName: string;
   academicYear: string;
   semester: number;
+  courseId: string;
+  branchId: string;
 };
 
 export default function AssignmentsPage() {
@@ -52,7 +54,9 @@ export default function AssignmentsPage() {
   }, []);
 
   async function handleDelete(id: string) {
-    const ok = confirm("Delete this assignment for this course/branch/year?");
+    const ok = confirm(
+      "Delete this assignment for this course/branch/year/semester?",
+    );
     if (!ok) return;
 
     const res = await fetch(`/api/assignments/${id}`, {
@@ -72,7 +76,8 @@ export default function AssignmentsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Assignments</h1>
           <p className="text-sm text-muted-foreground">
-            Shared assignments per course, branch, academic year, and semester.
+            One assignment per course, branch, academic year, and semester,
+            shared across all sections.
           </p>
         </div>
 
@@ -99,8 +104,11 @@ export default function AssignmentsPage() {
               <TableRow>
                 <TableHead>Title</TableHead>
                 <TableHead>Course</TableHead>
+                <TableHead>Course ID</TableHead>
                 <TableHead>Branch</TableHead>
-                <TableHead>Year / Sem</TableHead>
+                <TableHead>Branch ID</TableHead>
+                <TableHead>Academic year</TableHead>
+                <TableHead>Semester</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -112,10 +120,11 @@ export default function AssignmentsPage() {
                   <TableCell>
                     {a.courseCode} – {a.courseName}
                   </TableCell>
+                  <TableCell>{a.courseId}</TableCell>
                   <TableCell>{a.branchName}</TableCell>
-                  <TableCell>
-                    {a.academicYear} / Sem {a.semester}
-                  </TableCell>
+                  <TableCell>{a.branchId}</TableCell>
+                  <TableCell>{a.academicYear}</TableCell>
+                  <TableCell>{a.semester}</TableCell>
                   <TableCell>{a.status}</TableCell>
                   <TableCell className="text-right space-x-2">
                     <Button asChild variant="ghost" size="icon">
