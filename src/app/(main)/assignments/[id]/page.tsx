@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Loader2, Save, Calculator } from "lucide-react"
+import { ArrowLeft, Loader2, Save, Calculator, Upload } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,6 +17,7 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
+import AssignmentMarksUploadModal from "@/components/assignments/marks-upload-modal"
 
 type AssignmentDetail = {
   id: string
@@ -61,6 +62,7 @@ export default function AssignmentMarksPage() {
   const [loading, setLoading] = React.useState(true)
   const [saving, setSaving] = React.useState(false)
   const [changed, setChanged] = React.useState<Set<string>>(new Set())
+  const [showUploadModal, setShowUploadModal] = React.useState(false)
 
   React.useEffect(() => {
     if (!assignmentId) return
@@ -210,6 +212,10 @@ export default function AssignmentMarksPage() {
           >
             {assignment.status}
           </Badge>
+          <Button variant="outline" onClick={() => setShowUploadModal(true)}>
+            <Upload className="mr-2 h-4 w-4" />
+            Import CSV
+          </Button>
           <Button onClick={handleSave} disabled={saving || changed.size === 0}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             <Save className="mr-2 h-4 w-4" />
@@ -387,6 +393,16 @@ export default function AssignmentMarksPage() {
           Save All Changes
         </Button>
       </div>
+
+      <AssignmentMarksUploadModal
+        open={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        onSuccess={() => {
+          fetchData()
+          setShowUploadModal(false)
+        }}
+        assignmentId={assignmentId}
+      />
     </div>
   )
 }
