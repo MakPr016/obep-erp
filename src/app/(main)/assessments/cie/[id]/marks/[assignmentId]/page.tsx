@@ -61,6 +61,7 @@ export default function CIEMarksEntryPage() {
     const [saving, setSaving] = useState(false);
     const [changedMarks, setChangedMarks] = useState<Set<string>>(new Set());
     const [showUploadModal, setShowUploadModal] = useState(false);
+    const [classId, setClassId] = useState<string | null>(null);
 
     useEffect(() => {
         fetchMarksData();
@@ -77,6 +78,10 @@ export default function CIEMarksEntryPage() {
                 setClassInfo(data.classInfo);
                 setStudents(data.students || []);
                 setQuestions(data.questions || []);
+                // Extract classId from the response
+                if (data.classId) {
+                    setClassId(data.classId);
+                }
             } else {
                 toast.error(data.error || 'Failed to load marks data');
             }
@@ -157,7 +162,8 @@ export default function CIEMarksEntryPage() {
 
     const handleCalculateAttainment = async () => {
         await handleSaveAll();
-        router.push(`/assessments/cie/${assessmentId}/attainment?assignmentId=${assignmentId}`);
+        const url = `/assessments/cie/${assessmentId}/attainment?filterType=class${classId ? `&classId=${classId}` : ''}`;
+        router.push(url);
     };
 
     if (loading) {

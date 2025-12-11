@@ -41,9 +41,23 @@ export async function GET(req: NextRequest) {
       query = query.eq("class_id", classId)
     }
 
-    // If HOD, filter by department
+    // If HOD, filter by department - get classes first
     if (session.user.role === 'hod') {
-      query = query.eq("class.branch.department_id", session.user.departmentId)
+      const { data: hodClasses } = await supabase
+        .from('classes')
+        .select('id')
+        .eq('branches.department_id', session.user.departmentId);
+      
+      const hodClassIds = hodClasses?.map(c => c.id) || [];
+      
+      if (hodClassIds.length === 0) {
+        return NextResponse.json({
+          students: [],
+          pagination: { page, limit, totalpages: 0 }
+        });
+      }
+      
+      query = query.in('class_id', hodClassIds);
     } else if (session.user.role === 'faculty') {
       // Get classes assigned to this faculty
       const { data: assignments } = await supabase

@@ -143,7 +143,8 @@ export async function GET(
             assessment,
             classInfo,
             questions,
-            students: studentsWithMarks
+            students: studentsWithMarks,
+            classId: classId // Include classId for use in attainment navigation
         });
     } catch (error: any) {
         console.error('Error fetching CIE marks:', error);
