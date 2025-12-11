@@ -1,8 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import { Loader2, Plus, Trash2 } from "lucide-react"
+import { useRouter, useParams } from "next/navigation"
+import { Loader2, Plus, Trash2, ArrowLeft } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,43 +26,74 @@ type CourseOutcome = {
 }
 
 type Question = {
+  id?: string
+  questionNumber: number
   questionLabel: string
   maxMarks: number
   courseOutcomeId: string
   bloomsLevel: string
 }
 
+type AssignmentData = {
+  id: string
+  title: string
+  description: string | null
+  status: "DRAFT" | "PUBLISHED"
+  dueDate: string | null
+  courseId: string
+  classId: string
+  questions: Question[]
+}
+
 const BLOOMS_LEVELS = ["Remember", "Understand", "Apply", "Analyze", "Evaluate", "Create"]
 
-export default function CreateAssignmentPage() {
+export default function EditAssignmentPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-
-  const classId = searchParams.get("classId") ?? ""
-  const courseId = searchParams.get("courseId") ?? ""
+  const params = useParams()
+  const assignmentId = params.id as string
 
   const [title, setTitle] = React.useState("")
   const [description, setDescription] = React.useState("")
   const [dueDate, setDueDate] = React.useState("")
   const [status, setStatus] = React.useState<"DRAFT" | "PUBLISHED">("DRAFT")
-  const [questions, setQuestions] = React.useState<Question[]>([
-    { questionLabel: "Q1", maxMarks: 10, courseOutcomeId: "", bloomsLevel: "" },
-  ])
+  const [questions, setQuestions] = React.useState<Question[]>([])
   const [courseOutcomes, setCourseOutcomes] = React.useState<CourseOutcome[]>([])
+  const [courseId, setCourseId] = React.useState("")
+  const [classId, setClassId] = React.useState("")
   const [loading, setLoading] = React.useState(true)
   const [submitting, setSubmitting] = React.useState(false)
 
   React.useEffect(() => {
-    if (!classId || !courseId) {
-      toast.error("Missing class or course. Please navigate from assignments page.")
-      setLoading(false)
-      return
+    if (assignmentId) {
+      fetchAssignmentData()
     }
-    fetchCourseOutcomes()
-  }, [classId, courseId])
+  }, [assignmentId])
 
-  async function fetchCourseOutcomes() {
+  async function fetchAssignmentData() {
     setLoading(true)
+    try {
+      const res = await fetch(`/api/assignments/${assignmentId}/edit`)
+      if (!res.ok) throw new Error("Failed to fetch assignment")
+      const data: AssignmentData = await res.json()
+
+      setTitle(data.title)
+      setDescription(data.description || "")
+      setStatus(data.status)
+      setDueDate(data.dueDate || "")
+      setCourseId(data.courseId)
+      setClassId(data.classId)
+      setQuestions(data.questions)
+
+      await fetchCourseOutcomes(data.courseId)
+    } catch (err) {
+      toast.error("Failed to load assignment data")
+      router.back()
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function fetchCourseOutcomes(courseId: string) {
     try {
       const res = await fetch(`/api/course-outcomes?courseId=${courseId}`)
       if (!res.ok) throw new Error("Failed to fetch course outcomes")
@@ -70,15 +101,22 @@ export default function CreateAssignmentPage() {
       setCourseOutcomes(data.data || [])
     } catch (err) {
       toast.error("Failed to load course outcomes")
-    } finally {
-      setLoading(false)
     }
   }
 
   function addQuestion() {
+    const newQuestionNumber = questions.length > 0 
+      ? Math.max(...questions.map(q => q.questionNumber)) + 1 
+      : 1
     setQuestions([
       ...questions,
-      { questionLabel: `Q${questions.length + 1}`, maxMarks: 10, courseOutcomeId: "", bloomsLevel: "" },
+      {
+        questionNumber: newQuestionNumber,
+        questionLabel: `Q${newQuestionNumber}`,
+        maxMarks: 10,
+        courseOutcomeId: "",
+        bloomsLevel: "",
+      },
     ])
   }
 
@@ -101,10 +139,6 @@ export default function CreateAssignmentPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
-    if (!classId || !courseId) {
-      toast.error("Context is missing. Please go back and try again.")
-      return
-    }
     if (!title.trim()) {
       toast.error("Title is required.")
       return
@@ -136,17 +170,16 @@ export default function CreateAssignmentPage() {
 
     setSubmitting(true)
     try {
-      const res = await fetch("/api/assignments", {
-        method: "POST",
+      const res = await fetch(`/api/assignments/${assignmentId}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title,
           description,
           status,
           dueDate: dueDate || null,
-          courseId,
-          classId,
           questions: questions.map((q, idx) => ({
+            id: q.id,
             questionNumber: idx + 1,
             questionLabel: q.questionLabel,
             maxMarks: Number(q.maxMarks),
@@ -158,10 +191,10 @@ export default function CreateAssignmentPage() {
 
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || "Failed to create assignment")
+        throw new Error(data.error || "Failed to update assignment")
       }
 
-      toast.success("Assignment created successfully!")
+      toast.success("Assignment updated successfully!")
       router.push(`/assignments/course/${courseId}?classId=${classId}`)
     } catch (err: any) {
       toast.error(err.message)
@@ -182,13 +215,18 @@ export default function CreateAssignmentPage() {
 
   return (
     <div className="container mx-auto p-6 max-w-4xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Create Assignment
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Add questions with their respective COs and Bloom's levels
-        </p>
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="sm" onClick={() => router.back()}>
+          <ArrowLeft className="h-4 w-4 mr-2" /> Back
+        </Button>
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Edit Assignment
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Update assignment details and questions
+          </p>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -299,10 +337,10 @@ export default function CreateAssignmentPage() {
                             updateQuestion(index, "courseOutcomeId", v)
                           }
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="max-w-[300px]">
                             <SelectValue placeholder="Select CO" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="max-w-[300px]">
                             {courseOutcomes.map((co) => (
                               <SelectItem key={co.id} value={co.id}>
                                 {co.co_number} - {co.description.substring(0, 50)}
@@ -361,7 +399,7 @@ export default function CreateAssignmentPage() {
           </Button>
           <Button type="submit" disabled={submitting}>
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Create Assignment
+            Update Assignment
           </Button>
         </div>
       </form>

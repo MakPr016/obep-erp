@@ -15,6 +15,14 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { toast } from "sonner"
 
 type AssignmentRow = {
@@ -40,6 +48,9 @@ export default function CourseAssignmentsPage() {
   const [assignments, setAssignments] = React.useState<AssignmentRow[]>([])
   const [courseDetails, setCourseDetails] = React.useState<CourseDetails | null>(null)
   const [loading, setLoading] = React.useState(true)
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
+  const [assignmentToDelete, setAssignmentToDelete] = React.useState<string | null>(null)
+  const [deleting, setDeleting] = React.useState(false)
 
   React.useEffect(() => {
     if (courseId && classId) {
@@ -73,20 +84,36 @@ export default function CourseAssignmentsPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Are you sure you want to delete this assignment?")) return
+  function openDeleteDialog(id: string) {
+    setAssignmentToDelete(id)
+    setDeleteDialogOpen(true)
+  }
 
+  function closeDeleteDialog() {
+    setDeleteDialogOpen(false)
+    setAssignmentToDelete(null)
+  }
+
+  async function confirmDelete() {
+    if (!assignmentToDelete) return
+
+    setDeleting(true)
     try {
-      const res = await fetch(`/api/assignments/${id}`, { method: "DELETE" })
+      const res = await fetch(`/api/assignments/${assignmentToDelete}`, {
+        method: "DELETE",
+      })
       if (res.ok) {
-        setAssignments((prev) => prev.filter((a) => a.id !== id))
-        toast.success("Assignment deleted successfully.")
+        setAssignments((prev) => prev.filter((a) => a.id !== assignmentToDelete))
+        toast.success("Assignment deleted successfully")
+        closeDeleteDialog()
       } else {
         const errorData = await res.json()
-        toast.error(errorData.error || "Failed to delete assignment.")
+        toast.error(errorData.error || "Failed to delete assignment")
       }
     } catch (err) {
-      toast.error("An error occurred while deleting the assignment.")
+      toast.error("An error occurred while deleting the assignment")
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -170,7 +197,7 @@ export default function CourseAssignmentsPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleDelete(a.id)}
+                      onClick={() => openDeleteDialog(a.id)}
                       className="text-red-600 hover:text-red-700 hover:bg-red-50"
                       title="Delete"
                     >
@@ -183,6 +210,34 @@ export default function CourseAssignmentsPage() {
           </Table>
         )}
       </div>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Assignment</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this assignment? This action cannot be undone and will also delete all associated questions and student marks.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={closeDeleteDialog}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleting}
+            >
+              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
