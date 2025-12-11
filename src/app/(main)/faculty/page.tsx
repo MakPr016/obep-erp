@@ -6,13 +6,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Trash2, Edit3 } from "lucide-react"
+import { Trash2, Edit3, Upload } from "lucide-react"
+import FacultyUploadModal from "@/components/faculty/faculty-upload-modal"
 
 export default function FacultyPage() {
   const [faculty, setFaculty] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
+  const [showUploadModal, setShowUploadModal] = useState(false)
   const [selectedFaculty, setSelectedFaculty] = useState<any>(null)
   const [formData, setFormData] = useState({ full_name: "", email: "", password: "" })
 
@@ -120,7 +122,13 @@ export default function FacultyPage() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Faculty Management</h1>
-        <Button onClick={openAddDialog}>Add Faculty</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowUploadModal(true)}>
+            <Upload className="mr-2 h-4 w-4" />
+            Import CSV
+          </Button>
+          <Button onClick={openAddDialog}>Add Faculty</Button>
+        </div>
       </div>
 
       <Table>
@@ -212,6 +220,15 @@ export default function FacultyPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <FacultyUploadModal
+        open={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        onSuccess={() => {
+          fetchFaculty()
+          setShowUploadModal(false)
+        }}
+      />
     </div>
   )
 }

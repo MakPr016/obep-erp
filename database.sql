@@ -14,6 +14,38 @@ CREATE TABLE public.account (
   CONSTRAINT account_pkey PRIMARY KEY (id),
   CONSTRAINT account_userId_fkey FOREIGN KEY (userId) REFERENCES public.user(id)
 );
+CREATE TABLE public.assignment_student_marks (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  assignment_id uuid NOT NULL,
+  class_id uuid NOT NULL,
+  student_id uuid NOT NULL,
+  marks_obtained numeric,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT assignment_student_marks_pkey PRIMARY KEY (id),
+  CONSTRAINT assignment_student_marks_assignment_id_fkey FOREIGN KEY (assignment_id) REFERENCES public.assignments(id),
+  CONSTRAINT assignment_student_marks_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id),
+  CONSTRAINT assignment_student_marks_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id)
+);
+CREATE TABLE public.assignments (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  course_id uuid NOT NULL,
+  title character varying NOT NULL,
+  description text,
+  total_marks integer NOT NULL DEFAULT 100,
+  status character varying NOT NULL DEFAULT 'DRAFT'::character varying,
+  due_date date,
+  created_by uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  blooms_level text,
+  daves_level text,
+  class_id uuid,
+  CONSTRAINT assignments_pkey PRIMARY KEY (id),
+  CONSTRAINT assignments_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id),
+  CONSTRAINT assignments_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id),
+  CONSTRAINT assignments_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id)
+);
 CREATE TABLE public.branches (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   scheme_id uuid,
