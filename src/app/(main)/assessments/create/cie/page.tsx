@@ -42,6 +42,11 @@ export default function CreateCIEAssessmentPage() {
   const searchParams = useSearchParams();
   const courseId = searchParams.get('courseId');
 
+  // Get filter params to restore when going back
+  const scheme = searchParams.get('scheme');
+  const branch = searchParams.get('branch');
+  const semester = searchParams.get('semester');
+
   const [assessmentType, setAssessmentType] = useState('');
   const [totalMarks, setTotalMarks] = useState(40);
   const [courseOutcomes, setCourseOutcomes] = useState([]);
@@ -50,6 +55,15 @@ export default function CreateCIEAssessmentPage() {
 
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<string>('');
+
+  const getBackUrl = () => {
+    const params = new URLSearchParams();
+    if (scheme) params.set('scheme', scheme);
+    if (branch) params.set('branch', branch);
+    if (semester) params.set('semester', semester);
+    const queryString = params.toString();
+    return queryString ? `/assessments?${queryString}` : '/assessments';
+  };
 
   useEffect(() => {
     if (courseId) {
@@ -118,12 +132,16 @@ export default function CreateCIEAssessmentPage() {
       }
 
       toast.success('Assessment created successfully');
-      router.push('/assessments');
+      router.push(getBackUrl());
     } catch (error: any) {
       toast.error(error.message || 'Failed to create assessment');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleBack = () => {
+    router.push(getBackUrl());
   };
 
   return (
@@ -192,7 +210,7 @@ export default function CreateCIEAssessmentPage() {
         <Button onClick={handleSubmit} disabled={loading}>
           {loading ? 'Creating...' : 'Create Assessment'}
         </Button>
-        <Button variant="outline" onClick={() => router.back()}>
+        <Button variant="outline" onClick={handleBack}>
           Cancel
         </Button>
       </div>

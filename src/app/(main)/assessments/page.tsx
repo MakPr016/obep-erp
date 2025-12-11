@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, FileText, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,6 +31,7 @@ interface FilterOption {
 
 export default function AssessmentsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -48,6 +49,15 @@ export default function AssessmentsPage() {
   const [searched, setSearched] = useState(false);
 
   useEffect(() => {
+    // Restore filters from URL params on mount
+    const schemeParam = searchParams.get('scheme');
+    const branchParam = searchParams.get('branch');
+    const semesterParam = searchParams.get('semester');
+
+    if (schemeParam) setSelectedScheme(schemeParam);
+    if (branchParam) setSelectedBranch(branchParam);
+    if (semesterParam) setSelectedSemester(semesterParam);
+
     fetchSchemes();
   }, []);
 
@@ -108,6 +118,13 @@ export default function AssessmentsPage() {
       const res = await fetch(`/api/courses?${params.toString()}`);
       const data = await res.json();
       setCourses(data.courses || []);
+
+      // Save filters to URL
+      const newParams = new URLSearchParams();
+      if (selectedScheme) newParams.set('scheme', selectedScheme);
+      if (selectedBranch) newParams.set('branch', selectedBranch);
+      if (selectedSemester) newParams.set('semester', selectedSemester);
+      router.replace(`/assessments?${newParams.toString()}`);
     } catch {
       toast.error('Failed to load courses');
       setCourses([]);
@@ -237,9 +254,14 @@ export default function AssessmentsPage() {
                     <Button
                       className="w-full"
                       variant="outline"
-                      onClick={() =>
-                        router.push(`/assessments/create/cie?courseId=${course.id}`)
-                      }
+                      onClick={() => {
+                        const params = new URLSearchParams();
+                        params.set('courseId', course.id);
+                        if (selectedScheme) params.set('scheme', selectedScheme);
+                        if (selectedBranch) params.set('branch', selectedBranch);
+                        if (selectedSemester) params.set('semester', selectedSemester);
+                        router.push(`/assessments/create/cie?${params.toString()}`);
+                      }}
                     >
                       <Plus className="mr-2 h-4 w-4" />
                       Add CIE Assessment
@@ -247,9 +269,14 @@ export default function AssessmentsPage() {
                     <Button
                       className="w-full"
                       variant="outline"
-                      onClick={() =>
-                        router.push(`/assessments/create/see?courseId=${course.id}`)
-                      }
+                      onClick={() => {
+                        const params = new URLSearchParams();
+                        params.set('courseId', course.id);
+                        if (selectedScheme) params.set('scheme', selectedScheme);
+                        if (selectedBranch) params.set('branch', selectedBranch);
+                        if (selectedSemester) params.set('semester', selectedSemester);
+                        router.push(`/assessments/create/see?${params.toString()}`);
+                      }}
                     >
                       <Plus className="mr-2 h-4 w-4" />
                       Add SEE Assessment
